@@ -13,6 +13,18 @@ from .constants import SCHEMA_VERSION, DEFAULT_POLICY
 
 LOCK_TIMEOUT = 5  # seconds
 STALE_LOCK_SECONDS = 30
+MY_PID = os.getpid()
+
+
+def _pid_alive(pid: int) -> bool:
+    """Return True if the process with the given PID is still alive."""
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
 
 
 class StateStore:
@@ -46,10 +58,12 @@ class StateStore:
         }
 
     def acquire_lock(self, blocking: bool = True) -> bool:
-        # stale-lock recovery: a lock file untouched for a while is dead
+        # stale-lock recovery: a lock file older than STALE_LOCK_SECONDS is dead
         self._clear_stale_lock()
         try:
             self._lock_fd = open(self.lock_path, "x")
+            self._lock_fd.write(f"{MY_PID}\n")
+            self._lock_fd.flush()
             return True
         except FileExistsError:
             if not blocking:
@@ -59,6 +73,8 @@ class StateStore:
                 self._clear_stale_lock()
                 try:
                     self._lock_fd = open(self.lock_path, "x")
+                    self._lock_fd.write(f"{MY_PID}\n")
+                    self._lock_fd.flush()
                     return True
                 except FileExistsError:
                     time.sleep(0.1)
@@ -66,16 +82,28 @@ class StateStore:
 
     def _clear_stale_lock(self):
         try:
-            age = time.time() - os.path.getmtime(self.lock_path)
-            if age > STALE_LOCK_SECONDS:
+            if time.time() - os.path.getmtime(self.lock_path) <= STALE_LOCK_SECONDS:
+                return
+            # only steal if the recorded holder PID is no longer alive
+            holder = self._lock_holder_pid()
+            if holder is None or not _pid_alive(holder):
                 self.lock_path.unlink(missing_ok=True)
         except FileNotFoundError:
             pass
 
+    def _lock_holder_pid(self):
+        try:
+            text = self.lock_path.read_text(encoding="utf-8").strip()
+            return int(text.split("\n")[0])
+        except (FileNotFoundError, ValueError, IndexError):
+            return None
+
     def release_lock(self):
         if self._lock_fd:
             self._lock_fd.close()
-            self.lock_path.unlink(missing_ok=True)
+            # only remove if we still own it (avoids nuking a stolen/reacquired lock)
+            if self._lock_holder_pid() == MY_PID:
+                self.lock_path.unlink(missing_ok=True)
             self._lock_fd = None
 
     def save_state(self, state: dict) -> None:

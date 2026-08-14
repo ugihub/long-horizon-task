@@ -70,6 +70,17 @@ class TestStateStore(unittest.TestCase):
         store2 = StateStore(self.tmpdir)
         self.assertFalse(store2.acquire_lock(blocking=False))
 
+    def test_stale_lock_with_live_pid_not_stolen(self):
+        # old lock file but holder PID is still alive -> must not steal
+        import os as _os
+        Path(self.store.lock_path).write_text(f"{_os.getpid()}\n")
+        old = time.time() - STALE_LOCK_SECONDS - 10
+        os.utime(self.store.lock_path, (old, old))
+        store2 = StateStore(self.tmpdir)
+        self.assertFalse(store2.acquire_lock(blocking=False))
+        # lock file still belongs to us
+        self.assertEqual(self.store._lock_holder_pid(), _os.getpid())
+
     def test_snapshot_and_restore(self):
         self.store.acquire_lock()
         try:
