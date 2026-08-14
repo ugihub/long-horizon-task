@@ -61,7 +61,7 @@ class SchemaValidator:
         edges = []
         for t in plan.get("tasks", []):
             for dep in t.get("depends_on", []):
-                edges.append((dep, t["id"]))
+                edges.append((dep, t.get("id", "?")))
         if self._has_cycle(task_ids, edges):
             errs.append("cyclic dependency detected in plan tasks")
         # goal_hash present

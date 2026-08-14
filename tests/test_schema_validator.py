@@ -153,6 +153,54 @@ class TestSchemaValidator(unittest.TestCase):
         errs = self.v.validate_state(state)
         self.assertTrue(any("missing field" in e for e in errs))
 
+    def test_validate_plan_rejects_non_pending_initial(self):
+        plan = {
+            "schema_version": "1.0",
+            "run_id": "test-123",
+            "goal_hash": "x" * 64,
+            "title": "Bad", "objective": "X",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "active",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        errs = self.v.validate_plan(plan)
+        self.assertTrue(any("initial status must be 'pending'" in e for e in errs))
+
+    def test_claimed_done_with_empty_evidence_rejected(self):
+        errs = self.v.validate_update({"task_id": "T01", "status": "claimed_done", "evidence": []})
+        self.assertTrue(any("evidence" in e for e in errs))
+
+    def test_state_task_in_progress_status_passes(self):
+        state = {
+            "schema_version": "1.0", "run_id": "r", "goal": {"text": "g", "hash": "0" * 64},
+            "phase": "EXECUTING", "mode": "DRY_RUN", "active_task_id": None, "policy": {},
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "active",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "current_step": 0,
+        }
+        errs = self.v.validate_state(state)
+        self.assertEqual(errs, [])
+
+    def test_plan_with_missing_id_does_not_crash(self):
+        plan = {
+            "schema_version": "1.0",
+            "run_id": "test-123",
+            "goal_hash": "x" * 64,
+            "title": "NoId", "objective": "X",
+            "tasks": [{"depends_on": []}],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        errs = self.v.validate_plan(plan)  # should not raise
+        self.assertTrue(any("missing field" in e for e in errs))
+
     def test_validate_plan_duplicate_task_ids(self):
         plan = {
             "schema_version": "1.0",
