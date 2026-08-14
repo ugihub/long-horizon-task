@@ -10,7 +10,7 @@ class TestParser(unittest.TestCase):
     def test_extract_single_block(self):
         text = """Some text
 ```lhtm-update
-{"task_id": "T01", "status": "active"}
+{"task_id": "T01", "status": "claimed_done", "evidence": [{"type": "test", "path": "x"}]}
 ```
 done"""
         result = self.p.extract_updates(text)
@@ -20,11 +20,11 @@ done"""
 
     def test_extract_multiple_blocks(self):
         text = """```lhtm-update
-{"task_id": "T01", "status": "active"}
+{"task_id": "T01", "status": "blocked"}
 ```
 middle
 ```lhtm-update
-{"task_id": "T02", "status": "active"}
+{"task_id": "T02", "status": "ready"}
 ```"""
         result = self.p.extract_updates(text)
         self.assertEqual(len(result), 2)
@@ -83,7 +83,7 @@ middle
     def test_parse_error_key_does_not_shadow_user_json(self):
         # a block whose JSON legitimately contains a "parse_error" key is NOT
         # treated as a parse failure — the sentinel distinguishes them.
-        text = '```lhtm-update\n{"task_id": "T01", "status": "active", "parse_error": "x"}\n```'
+        text = '```lhtm-update\n{"task_id": "T01", "status": "blocked", "parse_error": "x"}\n```'
         result = self.p.extract_updates(text)
         self.assertEqual(len(result), 1)
         # the user's key survives; it is not the failure sentinel value

@@ -21,6 +21,10 @@ class LhtmEngine:
             self.state["policy"] = dict(DEFAULT_POLICY)
 
     def _save(self):
+        # guardrail: canonical state must stay valid; reject corrupt writes before disk
+        errs = self.validator.validate_state(self.state)
+        if errs:
+            raise ValueError("Refusing to save invalid state: " + "; ".join(errs))
         self.store.acquire_lock()
         try:
             self.store.save_state(self.state)

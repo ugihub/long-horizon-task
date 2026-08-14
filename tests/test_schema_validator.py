@@ -106,12 +106,16 @@ class TestSchemaValidator(unittest.TestCase):
         self.assertTrue(any("T99" in e for e in errs))
 
     def test_validate_update_legal(self):
-        errs = self.v.validate_update({"task_id": "T01", "status": "active"})
+        errs = self.v.validate_update({"task_id": "T01", "status": "blocked"})
         self.assertEqual(errs, [])
 
     def test_validate_update_engine_owned_status(self):
         errs = self.v.validate_update({"task_id": "T01", "status": "verified_done"})
         self.assertTrue(any("LLM" in e or "engine" in e.lower() for e in errs))
+
+    def test_validate_update_active_is_engine_owned(self):
+        errs = self.v.validate_update({"task_id": "T01", "status": "active"})
+        self.assertTrue(any("active" in e for e in errs))
 
     def test_validate_update_invalid_status(self):
         errs = self.v.validate_update({"task_id": "T01", "status": "nonsense"})

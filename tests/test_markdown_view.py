@@ -44,7 +44,7 @@ class TestMarkdownView(unittest.TestCase):
 
     def test_render_shows_active_indicator(self):
         md = self.view.render_tracker(self.state)
-        self.assertIn("▶", md)  # active marker
+        self.assertIn(">>", md)  # active marker (ASCII)
 
     def test_render_evidence_checklist(self):
         md = self.view.render_tracker(self.state)

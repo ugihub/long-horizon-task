@@ -101,6 +101,8 @@ class SchemaValidator:
             errs.append(f"invalid status: '{status}'")
         elif status in ENGINE_OWNED_STATUSES:
             errs.append(f"status '{status}' is engine-owned. LLM may not set it.")
+        elif status == "active":
+            errs.append("status 'active' is engine-owned via activate_task. LLM may not set it.")
         if status == "claimed_done" and not update.get("evidence"):
             errs.append("claimed_done requires evidence")
         return errs

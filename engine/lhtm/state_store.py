@@ -109,10 +109,13 @@ class StateStore:
     def save_state(self, state: dict) -> None:
         if not self._lock_fd:
             raise RuntimeError("save_state requires holding the state lock")
-        # atomic write: write to .tmp, then rename
+        # atomic write: write to .tmp, then rename; clean up .tmp on write failure
         tmp = self.state_path.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
-        tmp.replace(self.state_path)
+        try:
+            tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
+            tmp.replace(self.state_path)
+        finally:
+            tmp.unlink(missing_ok=True)
 
     def load_state(self) -> dict:
         if not self.state_path.exists():

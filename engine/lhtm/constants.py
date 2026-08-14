@@ -29,9 +29,10 @@ LEGAL_TASK_TRANSITIONS = {
     "skipped":     set(),      # terminal
 }
 
-# Statuses LLM may propose
-LLM_WRITABLE_STATUSES = {"pending", "ready", "active", "blocked", "claimed_done", "failed"}
-ENGINE_OWNED_STATUSES = {"verified_done", "skipped"}
+# Statuses LLM may propose via lhtm-update. 'active' is NOT here: the engine
+# owns activation (activate_task). ENGINE_OWNED_STATUSES are unreachable by LLM.
+LLM_WRITABLE_STATUSES = {"pending", "ready", "blocked", "claimed_done", "failed"}
+ENGINE_OWNED_STATUSES = {"active", "verified_done", "skipped"}
 
 # 4 execution modes
 EXECUTION_MODES = ["DRY_RUN", "SUPERVISED", "AUTO_SAFE", "FULL_AUTO"]

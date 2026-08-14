@@ -138,6 +138,37 @@ class TestEngine(unittest.TestCase):
         self.engine.process_update({"task_id": "T01", "status": "claimed_done", "evidence": [{"type": "test", "path": "x", "note": "done"}]})
         self.assertEqual(self.engine.state["tasks"][0]["attempts"], 1)
 
+    def test_process_update_rejects_active_status(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "ready"
+        self.engine._save()
+        self.engine.activate_task("T01")
+        # LLM cannot propose 'active' — engine owns activation
+        result = self.engine.process_update({"task_id": "T01", "status": "active"})
+        self.assertFalse(result["accepted"])
+        self.assertTrue(any("active" in e for e in result["errors"]))
+
+    def test_save_rejects_corrupt_state(self):
+        self.engine.set_goal("Build app")
+        self.engine.state["phase"] = "NOT_A_PHASE"
+        with self.assertRaises(ValueError):
+            self.engine._save()
+
     def test_process_update_rejects_engine_owned(self):
         self.engine.set_goal("Build app")
         result = self.engine.process_update({"task_id": "T01", "status": "verified_done"})

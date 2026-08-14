@@ -80,7 +80,7 @@ def main():
     for e in engine.get_events():
         print(f"  [{e['event']}] at {e['ts'][:19]}")
 
-    print("\n✓ Tahap 1 E2E passed!")
+    print("\nV Tahap 1 E2E passed!")
 
 if __name__ == "__main__":
     main()
