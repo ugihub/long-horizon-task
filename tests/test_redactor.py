@@ -51,6 +51,12 @@ class TestRedactor(unittest.TestCase):
     def test_empty_input(self):
         self.assertEqual(Redactor().redact(""), "")
 
+    def test_redacts_short_base64(self):
+        r = Redactor()
+        out = r.redact("k=dGhpcyBpcyBhIHNlY3JldA==")
+        self.assertIn("[REDACTED]", out)
+        self.assertNotIn("dGhpcyBpcyBhIHNlY3JldA", out)
+
 
 if __name__ == "__main__":
     unittest.main()

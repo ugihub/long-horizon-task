@@ -11,7 +11,7 @@ KEYWORD_SECRET_PATTERNS = [
 PLACEHOLDER = "[REDACTED]"
 
 _LONG_HEX = re.compile(r"\b[0-9a-f]{32,64}\b", re.IGNORECASE)
-_LONG_B64 = re.compile(r"\b[A-Za-z0-9+/]{40,}={0,2}\b")
+_LONG_B64 = re.compile(r"\b[A-Za-z0-9+/]{22,}={0,2}\b")
 
 
 class Redactor:
