@@ -3,11 +3,11 @@
 
 SCHEMA_VERSION = "1.0"
 
-# 12 phases (ordered)
+# 12 phases (ordered, per Implementation_plan.md §4.4)
 PHASES = [
-    "DRAFT", "PLANNING", "REVIEW", "APPROVED",
-    "READY", "EXECUTING", "VERIFYING", "RECOVERY",
-    "WAITING_USER", "COMPLETED", "ABORTED",
+    "DRAFT", "PLANNING", "PLAN_REVIEW", "READY",
+    "EXECUTING", "VERIFYING", "BLOCKED", "WAITING_USER",
+    "FAILED", "RECOVERY", "COMPLETED", "ABORTED",
 ]
 PHASE_INDEX = {p: i for i, p in enumerate(PHASES)}
 
@@ -43,10 +43,12 @@ DEFAULT_POLICY = {
     "max_repair_attempts": 2,
 }
 
-# Phase transition: legal = forward (index >= current) or to RECOVERY/WAITING_USER/ABORTED
+# Phase transition: legal = forward (index >= current) or to BLOCKED/WAITING_USER/FAILED/RECOVERY/ABORTED
+RECOVERY_PHASES = {"BLOCKED", "WAITING_USER", "FAILED", "RECOVERY", "ABORTED"}
+
 def is_legal_phase_transition(current: str, target: str) -> bool:
     if target not in PHASE_INDEX or current not in PHASE_INDEX:
         return False
-    if target in ("RECOVERY", "WAITING_USER", "ABORTED"):
+    if target in RECOVERY_PHASES:
         return True
     return PHASE_INDEX[target] >= PHASE_INDEX[current]

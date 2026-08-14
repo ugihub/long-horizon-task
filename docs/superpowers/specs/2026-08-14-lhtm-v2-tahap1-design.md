@@ -106,7 +106,7 @@ skipped  -> (terminal)
 Ilegal (harus tolak): `pending->active`, `claimed_done->pending`, `verified_done->active`, dsb.
 
 ### 3.4 Fase (Phase 4.4)
-12 fase, urutan implisit: `DRAFT, PLANNING, REVIEW, APPROVED, READY, EXECUTING, VERIFYING, RECOVERY, WAITING_USER, COMPLETED, ABORTED`. Legal = maju ke fase berikutnya atau ke `RECOVERY/WAITING_USER/ABORTED`. Ilegal = maju tanpa melalui fase, `COMPLETED->EXECUTING`, dsb.
+12 fase, urutan implisit: `DRAFT, PLANNING, PLAN_REVIEW, READY, EXECUTING, VERIFYING, BLOCKED, WAITING_USER, FAILED, RECOVERY, COMPLETED, ABORTED` (sumber: `Implementation_plan.md` §4.4). Legal = maju ke fase berikutnya atau ke recovery phases (`BLOCKED/WAITING_USER/FAILED/RECOVERY/ABORTED`). Ilegal = maju tanpa melalui fase, `COMPLETED->EXECUTING`, dsb.
 
 ### 3.5 Event log `events.jsonl` (Phase 4.5)
 Satu JSON per baris:
