@@ -51,8 +51,8 @@ class EvidenceVerifier:
         checks.append("C1 evidence: PASS")
 
         info_paths = [e["path"] for e in evs if e.get("path")]
-        file_paths = [e["path"] for e in evs if e.get("type") == "file_created" and e.get("path")]
-        file_paths += [a for a in artifacts if isinstance(a, str)]
+        file_paths = list({e["path"] for e in evs if e.get("type") == "file_created" and e.get("path")})
+        file_paths += [a for a in artifacts if isinstance(a, str) and a not in file_paths]
 
         bad = [p for p in info_paths if not _path_allowed(p, allowed)]
         if bad:
