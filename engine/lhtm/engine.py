@@ -97,16 +97,18 @@ class LhtmEngine:
 
     def recover(self, task_id: str, action: dict) -> dict:
         """Validate + apply a recovery action. Saves on success, returns {'ok': bool}."""
-        errs = self.recovery.validate_action(self.state, task_id, action, self.state.get("policy", {}))
+        policy = self.state.get("policy", {})
+        errs = self.recovery.validate_action(self.state, task_id, action, policy)
         if errs:
             return {"ok": False, "error": "; ".join(errs)}
-        task = self._find_task(task_id)
-        if task is None:
-            return {"ok": False, "error": f"task {task_id} not found"}
-        result = self.recovery.apply(self.state, task, action, self.state.get("policy", {}))
+        task = self._find_task(task_id)  # validate_action guarantees the task exists
+        result = self.recovery.apply(self.state, task, action, policy)
         if not result.get("ok"):
             return result
         # a recovered task is no longer active
+        # note: this also clears the active task when the action is
+        # switch_to_safe_mode (no task status change). Spec behavior; revisit
+        # if a task must stay active while lowering mode.
         self.state["active_task_id"] = None
         self._log_event("recovery.action", task_id, data={"action": action.get("action")})
         self._save()
