@@ -32,8 +32,12 @@ DEFAULT_CONFIG = {
     },
     "allowed_commands": ["pytest", "ruff", "mypy", "git status", "git diff"],
     "blocked_paths": [
-        ".env", "*.pem", "*.key", "id_rsa*", "id_ed25519*",
-        "credentials.json", ".aws/", ".gcp/", ".kube/", "secrets/",
+        ".env", ".env.*", "*.pem", "*.key", "*.cert",
+        "id_rsa*", "id_ed25519*", "id_ecdsa*",
+        "credentials.json", "*credentials*", "*credential*",
+        "*password*", "*secret*", "*token*", "*api_key*",
+        "*kubeconfig*", ".aws/", ".gcp/", ".kube/", "*.gcloud/",
+        "secrets/", ".lhtm/", "node_modules/", "vendor/", ".git/",
     ],
 }
 
