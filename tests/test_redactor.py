@@ -1,4 +1,5 @@
 # tests/test_redactor.py
+import copy
 import unittest
 from engine.lhtm.redactor import Redactor
 from engine.lhtm.config import DEFAULT_CONFIG
@@ -41,7 +42,7 @@ class TestRedactor(unittest.TestCase):
         self.assertNotIn("s3cr3t", out)
 
     def test_from_config_merges_extra_patterns(self):
-        cfg = dict(DEFAULT_CONFIG)
+        cfg = copy.deepcopy(DEFAULT_CONFIG)
         cfg["security"]["redact_patterns"] = ["github_pat"]
         r = Redactor.from_config(cfg)
         out = r.redact("github_pat: ghp_12345")
