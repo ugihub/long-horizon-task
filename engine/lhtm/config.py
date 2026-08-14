@@ -1,5 +1,6 @@
 # engine/lhtm/config.py
 """Load security policy + command allowlist from .lhtm/config.yaml (PyYAML)."""
+import copy
 import yaml
 from pathlib import Path
 
@@ -54,12 +55,12 @@ class Config:
         self.data = self._load()
 
     def _load(self) -> dict:
-        base = DEFAULT_CONFIG
+        base = copy.deepcopy(DEFAULT_CONFIG)
         if not self.path.exists():
             return base
         try:
             raw = yaml.safe_load(self.path.read_text(encoding="utf-8"))
-        except (yaml.YAMLError, OSError):
+        except (yaml.YAMLError, OSError, UnicodeDecodeError):
             return base
         if not isinstance(raw, dict):
             return base
