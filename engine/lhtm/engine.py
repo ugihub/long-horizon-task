@@ -65,6 +65,13 @@ class LhtmEngine:
             raise ValueError(f"Task {task_id} not found")
         if task["status"] != "ready":
             raise ValueError(f"Task {task_id} status is '{task['status']}', must be 'ready'")
+        # lhtm_core rule #2: one active task at a time
+        active = self.state.get("active_task_id")
+        if active is not None and active != task_id:
+            raise ValueError(f"Task {active} is already active; only one active task allowed")
+        max_attempts = task.get("max_attempts", self.state.get("policy", {}).get("max_attempts", 3))
+        if task.get("attempts", 0) >= max_attempts:
+            raise ValueError(f"Task {task_id} exhausted max_attempts={max_attempts}; propose 'failed'")
         self.state["active_task_id"] = task_id
         task["status"] = "active"
         task["attempts"] = task.get("attempts", 0) + 1
@@ -102,7 +109,7 @@ class LhtmEngine:
             task["evidence"] = update["evidence"]
         if "artifacts" in update:
             task["artifacts"] = update["artifacts"]
-        task["attempts"] = task.get("attempts", 0) + 1
+        # attempts counted once per activation (see activate_task); no increment here
 
         # if failed, clear active task
         if status == "failed":
