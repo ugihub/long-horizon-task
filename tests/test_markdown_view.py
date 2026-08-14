@@ -59,5 +59,37 @@ class TestMarkdownView(unittest.TestCase):
         md = self.view.render_tracker(state)
         self.assertIn("DRAFT", md)
 
+    def test_pipe_in_title_is_escaped(self):
+        state = dict(self.state)
+        state["tasks"] = [
+            {"id": "T01", "title": "a|b", "objective": "", "status": "active",
+             "depends_on": [], "risk_level": "low", "allowed_paths": [], "allowed_commands": [],
+             "definition_of_done": [], "artifacts": [], "evidence": [],
+             "attempts": 0, "max_attempts": 3},
+        ]
+        md = self.view.render_tracker(state)
+        self.assertIn(r"a\|b", md)
+
+    def test_each_row_has_7_cells(self):
+        md = self.view.render_tracker(self.state)
+        for line in md.splitlines():
+            if line.startswith("|") and not line.startswith("|----") and not line.startswith("| ID |"):
+                # count unescaped pipes = 8 (7 cells)
+                self.assertEqual(line.count("|"), 8, f"row malformed: {line}")
+
+    def test_non_dict_task_skipped(self):
+        state = dict(self.state)
+        state["tasks"] = [None, "not a dict"]
+        md = self.view.render_tracker(state)  # should not crash
+        # header renders; non-dict tasks are skipped without producing a row
+        self.assertIn("| ID |", md)
+        self.assertNotIn("not a dict", md)
+
+    def test_missing_field_task_uses_defaults(self):
+        state = dict(self.state)
+        state["tasks"] = [{"id": "T01"}]
+        md = self.view.render_tracker(state)
+        self.assertIn("T01", md)
+
 if __name__ == "__main__":
     unittest.main()
