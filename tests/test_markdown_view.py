@@ -91,5 +91,23 @@ class TestMarkdownView(unittest.TestCase):
         md = self.view.render_tracker(state)
         self.assertIn("T01", md)
 
+    def test_redacts_secret_in_cell(self):
+        from engine.lhtm.redactor import Redactor
+        view = MarkdownView(redactor=Redactor())
+        state = {
+            "schema_version": "1.0", "run_id": "r", "goal": {"text": "g", "hash": "h"*64},
+            "phase": "EXECUTING", "mode": "SUPERVISED", "active_task_id": None,
+            "policy": {}, "current_step": 0,
+            "tasks": [{
+                "id": "T01", "title": "set token=abc123", "objective": "", "status": "active",
+                "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                "evidence": [], "attempts": 0, "max_attempts": 3,
+            }],
+        }
+        md = view.render_tracker(state)
+        self.assertIn("[REDACTED]", md)
+        self.assertNotIn("abc123", md)
+
 if __name__ == "__main__":
     unittest.main()

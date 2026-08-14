@@ -104,6 +104,16 @@ class TestSafeExecutor(unittest.TestCase):
         self.assertFalse(r["ok"])
         self.assertIn("timed out", r["error"].lower())
 
+    def test_run_command_output_redacted(self):
+        self.cfg["security"]["redact_secrets"] = True
+        self.exe = SafeExecutor(self.cfg)
+        r = self.exe.execute({"action": "run_command", "tool": "python",
+                              "args": ["-c", "print('password: hunter2')"]},
+                             approved({"allowed": True}), {})
+        self.assertTrue(r["ok"])
+        self.assertNotIn("hunter2", r["result"])
+        self.assertIn("[REDACTED]", r["result"])
+
 
 if __name__ == "__main__":
     unittest.main()

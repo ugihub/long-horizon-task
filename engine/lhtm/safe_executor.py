@@ -6,11 +6,15 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from .redactor import Redactor
+
 
 class SafeExecutor:
     def __init__(self, config: dict):
         self.config = config
         self._limit = config.get("limits", {}).get("max_log_chars_sent_to_model", 3000)
+        self._redact = config.get("security", {}).get("redact_secrets", True)
+        self._redactor = Redactor.from_config(config)
 
     def execute(self, action: dict, decision: dict, task: dict) -> dict:
         if not decision.get("allowed"):
@@ -97,6 +101,8 @@ class SafeExecutor:
             return {"ok": False, "action": "run_command", "result": None, "error": "command timed out"}
         out = (proc.stdout or "") + (proc.stderr or "")
         out = out.strip()
+        if self._redact:
+            out = self._redactor.redact(out)
         if len(out) > self._limit:
             out = out[: self._limit] + f"\n... (truncated {len(out) - self._limit} chars)"
         if proc.returncode != 0:

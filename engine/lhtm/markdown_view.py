@@ -11,6 +11,15 @@ def _md_cell(value) -> str:
 
 
 class MarkdownView:
+    def __init__(self, redactor=None):
+        self.redactor = redactor
+
+    def _safe(self, value) -> str:
+        text = _md_cell(value)
+        if self.redactor:
+            text = self.redactor.redact(text)
+        return text
+
     def render_tracker(self, state: dict) -> str:
         lines = []
         lines.append("# LHTM Progress Tracker")
@@ -34,10 +43,10 @@ class MarkdownView:
                     continue
                 tid = t.get("id", "?")
                 marker = ">> " if tid == state.get("active_task_id") else "   "
-                title = _md_cell(t.get("title", "?"))
+                title = self._safe(t.get("title", "?"))
                 status = _md_cell(t.get("status", "?"))
-                deps = _md_cell(",".join(t.get("depends_on", [])) or "-")
-                risk = _md_cell(t.get("risk_level", "?"))
+                deps = self._safe(",".join(t.get("depends_on", [])) or "-")
+                risk = self._safe(t.get("risk_level", "?"))
                 attempts = f"{t.get('attempts', 0)}/{t.get('max_attempts', 3)}"
                 ev = "[x]" if t.get("evidence") else "[ ]"
                 lines.append(f"| {marker}{_md_cell(tid)} | {title} | {status} | {deps} | {risk} | {attempts} | {ev} |")
