@@ -15,6 +15,8 @@ class PromptLoader:
         parts = []
         for name in names:
             p = self.repo_root / name
-            if p.exists():
+            try:
                 parts.append(p.read_text(encoding="utf-8"))
+            except OSError:
+                continue  # skip unreadable file, same as missing
         return "\n\n".join(parts)

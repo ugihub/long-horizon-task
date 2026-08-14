@@ -41,7 +41,8 @@ class TestActionGate(unittest.TestCase):
         import os, tempfile
         tmp = tempfile.mkdtemp()
         existing = os.path.join(tmp, "a.py")
-        open(existing, "w").write("old")
+        with open(existing, "w") as f:
+            f.write("old")
         task = make_task(allowed_paths=(tmp + os.sep,))
         # AUTO_SAFE normally auto-allows writes, but existing-file overwrite still needs approval
         d = self.check({"action": "write_file", "path": existing, "content": "new"}, task=task, mode="AUTO_SAFE")
@@ -104,6 +105,27 @@ class TestActionGate(unittest.TestCase):
         d = self.check({"action": "write_file", "path": "src/new.py", "content": "x"}, mode="FULL_AUTO")
         self.assertTrue(d["allowed"])
         self.assertFalse(d["requires_approval"])
+
+    def test_sensitive_beats_allowed_path(self):
+        # path IS within allowed_paths but also sensitive -> rejected always
+        d = self.check({"action": "read_file", "path": "src/.env"})
+        self.assertFalse(d["allowed"])
+
+    def test_unknown_mode_fails_closed(self):
+        # any mode other than FULL_AUTO must require approval for writes
+        d = self.check({"action": "write_file", "path": "src/new.py", "content": "x"}, mode="INJECTED")
+        self.assertTrue(d["allowed"])
+        self.assertTrue(d["requires_approval"])
+
+    def test_run_command_bad_args_type_rejected(self):
+        # args must be a list; None/non-list must not crash the gate
+        d = self.check({"action": "run_command", "tool": "pytest", "args": None})
+        self.assertFalse(d["allowed"])
+
+    def test_run_command_space_anchor_prevents_prefix_escape(self):
+        # allowlist "pytest" must not match a different tool whose name merely starts with it
+        d = self.check({"action": "run_command", "tool": "pytestx", "args": ["-q"]})
+        self.assertFalse(d["allowed"])
 
 
 if __name__ == "__main__":

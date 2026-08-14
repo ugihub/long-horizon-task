@@ -5,8 +5,6 @@ import fnmatch
 from pathlib import Path
 
 ACTION_TYPES = {"read_file", "list_files", "search_code", "write_file", "delete_file", "run_command", "ask_user"}
-READ_ONLY_ACTIONS = {"read_file", "list_files", "search_code"}
-WRITE_ACTIONS = {"write_file", "delete_file"}
 
 # Destructive command patterns (from policies/security.md). Matched on the
 # joined tool+args string. Always rejected, regardless of allowlist.
@@ -35,7 +33,8 @@ def _path_allowed(path: str, allowed_paths: list) -> bool:
 
 
 def _is_sensitive(path: str, blocked_paths: list) -> bool:
-    low = path.lower()
+    # Normalize separators so Windows backslash paths match dir blocklist patterns.
+    low = path.replace("\\", "/").lower()
     for pat in blocked_paths:
         pat = pat.lower()
         if pat.endswith("/"):
@@ -98,7 +97,7 @@ class ActionGate:
             if not _path_allowed(path, task.get("allowed_paths", [])):
                 return {"allowed": False, "reason": f"Path '{path}' is not allowed",
                         "requires_approval": False, "diff": None}
-            overwrite = Path(path).exists()
+            overwrite = Path(path).resolve().exists()
             need_approval = mode != "FULL_AUTO"
             if overwrite and config.get("approval", {}).get("require_for_file_overwrite", True):
                 need_approval = True
@@ -112,13 +111,16 @@ class ActionGate:
 
         if atype == "run_command":
             tool = action.get("tool", "")
-            args = action.get("args", [])
-            cmd = " ".join([tool] + list(args))
-            if any(re.search(pat, cmd) for pat in DESTRUCTIVE_PATTERNS):
+            args = action.get("args")
+            if not isinstance(args, list) or not all(isinstance(x, str) for x in args):
+                return {"allowed": False, "reason": "Command args must be a list",
+                        "requires_approval": False, "diff": None}
+            cmd = " ".join([tool] + args)
+            if any(re.search(pat, cmd.lower()) for pat in DESTRUCTIVE_PATTERNS):
                 return {"allowed": False, "reason": f"Command '{cmd}' is destructive",
                         "requires_approval": False, "diff": None}
             allowed = config.get("allowed_commands", [])
-            if not any(cmd.startswith(a) or cmd == a for a in allowed):
+            if not any(cmd == a or cmd.startswith(a + " ") for a in allowed):
                 return {"allowed": False, "reason": f"Command '{cmd}' not in allowlist",
                         "requires_approval": False, "diff": None}
             return {"allowed": True, "reason": "ok", "requires_approval": mode != "FULL_AUTO", "diff": None}
