@@ -36,9 +36,14 @@ class RecoveryOrchestrator:
             # validate_plan checks fields/dup ids/depends_on/cycles/pending status.
             # NOTE: proposed_subtasks must NOT list the parent in depends_on; the
             # orchestrator adds the parent edge on apply.
+            # the parent must be able to reach blocked legally (active/ready);
+            # failed -> blocked is illegal, so a failed parent is rejected here
+            parent_errs = self.validator.validate_transition(task.get("status"), "blocked")
+            if parent_errs:
+                return parent_errs
             plan = {"schema_version": "1.0", "goal_hash": "x" * 64, "tasks": subs,
                     "open_questions": [], "metadata": {}, "approved": False}
-            return [e for e in self.validator.validate_plan(plan) if not e.startswith("plan ")]
+            return self.validator.validate_plan(plan)
         if name == "switch_to_safe_mode":
             target = (action.get("mode") or "SUPERVISED").upper()
             if target not in EXECUTION_MODES:

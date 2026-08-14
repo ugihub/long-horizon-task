@@ -99,6 +99,16 @@ class TestRecovery(unittest.TestCase):
         self.orc.apply(state, state["tasks"][0], {"action": "switch_to_safe_mode", "mode": "DRY_RUN"}, {})
         self.assertEqual(state["mode"], "DRY_RUN")
 
+    def test_decompose_on_failed_rejected(self):
+        # failed -> blocked is illegal (failed only allows ready); decompose must reject
+        state = make_state([make_task(status="failed")])
+        subs = [{"id": "T01-a", "title": "a", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": ["src/"],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3}]
+        errs = self.orc.validate_action(state, "T01", {"action": "decompose_task", "proposed_subtasks": subs}, {})
+        self.assertTrue(any("illegal" in e for e in errs))
+
 
 if __name__ == "__main__":
     unittest.main()
