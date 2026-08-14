@@ -1,0 +1,13 @@
+{
+  "task_id": "T01",
+  "status": "claimed_done",
+  "evidence": [
+    {"type": "file_created", "path": "src/main.py", "note": "Created main entry point"},
+    {"type": "test_pass", "path": "tests/test_main.py", "note": "All 3 tests pass"}
+  ],
+  "artifacts": ["src/main.py", "tests/test_main.py"],
+  "context": {
+    "rationale": "Implement core logic with tests",
+    "next_step": "Move to T02: add CLI interface"
+  }
+}

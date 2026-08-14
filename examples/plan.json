@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "run_id": "abc123def456",
+  "goal_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "title": "Build Todo App",
+  "objective": "Create a CLI todo application with add/list/done commands",
+  "tasks": [
+    {
+      "id": "T01", "title": "Project scaffold", "objective": "Init project structure",
+      "status": "pending", "depends_on": [], "risk_level": "low",
+      "allowed_paths": ["src/", "tests/", "cli.py"],
+      "allowed_commands": ["mkdir", "touch"],
+      "definition_of_done": ["cli.py exists", "src/ directory exists", "tests/ directory exists"],
+      "artifacts": [], "evidence": [], "attempts": 0, "max_attempts": 3
+    },
+    {
+      "id": "T02", "title": "CLI argument parsing", "objective": "Parse add/list/done commands",
+      "status": "pending", "depends_on": ["T01"], "risk_level": "low",
+      "allowed_paths": ["cli.py"],
+      "allowed_commands": [],
+      "definition_of_done": ["cli.py accepts 'add' argument", "cli.py accepts 'list' argument", "cli.py accepts 'done' argument"],
+      "artifacts": [], "evidence": [], "attempts": 0, "max_attempts": 3
+    }
+  ],
+  "open_questions": ["Should we use argparse or sys.argv?"],
+  "metadata": {"model": "claude-opus-4", "generated_at": "2026-08-14T00:00:00Z", "generator": "planner"},
+  "approved": false
+}
