@@ -76,7 +76,14 @@ class ActionGate:
                 return {"allowed": False, "reason": f"Path '{path}' is not allowed",
                         "requires_approval": False, "diff": None}
             if atype == "delete_file":
-                return {"allowed": True, "reason": "ok", "requires_approval": mode != "FULL_AUTO", "diff": None}
+                if mode == "FULL_AUTO":
+                    need_approval = False
+                elif mode == "AUTO_SAFE":
+                    need_approval = task.get("risk_level") != "low"
+                else:
+                    need_approval = True
+                return {"allowed": True, "reason": "ok", "requires_approval": need_approval,
+                        "diff": None, "dry_run": mode == "DRY_RUN"}
             return {"allowed": True, "reason": "ok", "requires_approval": False, "diff": None}
 
         if atype == "search_code":
@@ -98,8 +105,12 @@ class ActionGate:
                 return {"allowed": False, "reason": f"Path '{path}' is not allowed",
                         "requires_approval": False, "diff": None}
             overwrite = Path(path).resolve().exists()
-            need_approval = mode != "FULL_AUTO"
-            if overwrite and config.get("approval", {}).get("require_for_file_overwrite", True):
+            if mode == "FULL_AUTO":
+                need_approval = False
+            elif mode == "AUTO_SAFE":
+                need_approval = (task.get("risk_level") != "low") or (
+                    overwrite and config.get("approval", {}).get("require_for_file_overwrite", True))
+            else:
                 need_approval = True
             diff = None
             if overwrite:
@@ -107,7 +118,8 @@ class ActionGate:
                     diff = Path(path).read_text(encoding="utf-8", errors="replace")
                 except OSError:
                     diff = None
-            return {"allowed": True, "reason": "ok", "requires_approval": need_approval, "diff": diff}
+            return {"allowed": True, "reason": "ok", "requires_approval": need_approval,
+                    "diff": diff, "dry_run": mode == "DRY_RUN"}
 
         if atype == "run_command":
             tool = action.get("tool", "")
@@ -123,4 +135,11 @@ class ActionGate:
             if not any(cmd == a or cmd.startswith(a + " ") for a in allowed):
                 return {"allowed": False, "reason": f"Command '{cmd}' not in allowlist",
                         "requires_approval": False, "diff": None}
-            return {"allowed": True, "reason": "ok", "requires_approval": mode != "FULL_AUTO", "diff": None}
+            if mode == "FULL_AUTO":
+                need_approval = False
+            elif mode == "AUTO_SAFE":
+                need_approval = task.get("risk_level") != "low"
+            else:
+                need_approval = True
+            return {"allowed": True, "reason": "ok", "requires_approval": need_approval,
+                    "diff": None, "dry_run": mode == "DRY_RUN"}

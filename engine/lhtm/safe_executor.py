@@ -26,6 +26,8 @@ class SafeExecutor:
         if decision.get("requires_approval") and not decision.get("approval_granted"):
             return {"ok": False, "action": action.get("action"), "result": None,
                     "error": "requires user approval"}
+        if decision.get("dry_run"):
+            return {"ok": True, "action": action.get("action"), "result": "dry-run", "error": None}
         atype = action.get("action")
         try:
             if atype == "write_file":

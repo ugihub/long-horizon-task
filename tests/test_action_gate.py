@@ -127,6 +127,27 @@ class TestActionGate(unittest.TestCase):
         d = self.check({"action": "run_command", "tool": "pytestx", "args": ["-q"]})
         self.assertFalse(d["allowed"])
 
+    def test_auto_safe_low_risk_write_auto(self):
+        d = self.check({"action": "write_file", "path": "src/new.py", "content": "x"}, mode="AUTO_SAFE")
+        self.assertTrue(d["allowed"])
+        self.assertFalse(d["requires_approval"])
+
+    def test_auto_safe_high_risk_write_needs_approval(self):
+        d = self.check({"action": "write_file", "path": "src/new.py", "content": "x"},
+                       task=make_task(risk="high"), mode="AUTO_SAFE")
+        self.assertTrue(d["allowed"])
+        self.assertTrue(d["requires_approval"])
+
+    def test_auto_safe_low_risk_run_command_auto(self):
+        d = self.check({"action": "run_command", "tool": "pytest", "args": ["-q"]}, mode="AUTO_SAFE")
+        self.assertTrue(d["allowed"])
+        self.assertFalse(d["requires_approval"])
+
+    def test_dry_run_write_marked(self):
+        d = self.check({"action": "write_file", "path": "src/new.py", "content": "x"}, mode="DRY_RUN")
+        self.assertTrue(d["allowed"])
+        self.assertTrue(d.get("dry_run"))
+
 
 if __name__ == "__main__":
     unittest.main()

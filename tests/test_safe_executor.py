@@ -123,6 +123,14 @@ class TestSafeExecutor(unittest.TestCase):
         self.assertTrue(r["ok"])
         self.assertIn("hunter2", r["result"])
 
+    def test_dry_run_noop(self):
+        path = os.path.join(self.src, "dry.py")
+        r = self.exe.execute({"action": "write_file", "path": path, "content": "x"},
+                             {**approved({"allowed": True}), "dry_run": True}, {})
+        self.assertTrue(r["ok"])
+        self.assertEqual(r["result"], "dry-run")
+        self.assertFalse(os.path.exists(path))
+
 
 if __name__ == "__main__":
     unittest.main()

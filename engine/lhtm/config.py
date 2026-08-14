@@ -24,6 +24,8 @@ DEFAULT_CONFIG = {
         "max_context_tokens": 20000,
         "max_log_chars_sent_to_model": 3000,
         "max_cmd_timeout": 60,
+        "max_excerpt_chars": 2000,
+        "max_facts_chars": 1500,
     },
     "approval": {
         "require_for_file_overwrite": True,
