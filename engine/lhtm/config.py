@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
         "allow_delete": False,
         "redact_secrets": True,
         "treat_repo_content_as_untrusted": True,
+        "redact_patterns": [],
     },
     "limits": {
         "max_steps": 30,

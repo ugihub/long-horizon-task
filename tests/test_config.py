@@ -19,6 +19,7 @@ class TestConfig(unittest.TestCase):
         self.assertFalse(cfg.data["security"]["allow_shell"])
         self.assertEqual(cfg.data["limits"]["max_log_chars_sent_to_model"], 3000)
         self.assertEqual(cfg.data["limits"]["max_cmd_timeout"], 60)
+        self.assertEqual(cfg.data["security"]["redact_patterns"], [])
 
     def test_loads_yaml_file(self):
         with open(os.path.join(self.tmp, "config.yaml"), "w", encoding="utf-8") as f:
