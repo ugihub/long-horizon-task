@@ -106,7 +106,26 @@ skipped  -> (terminal)
 Ilegal (harus tolak): `pending->active`, `claimed_done->pending`, `verified_done->active`, dsb.
 
 ### 3.4 Fase (Phase 4.4)
-12 fase, urutan implisit: `DRAFT, PLANNING, PLAN_REVIEW, READY, EXECUTING, VERIFYING, BLOCKED, WAITING_USER, FAILED, RECOVERY, COMPLETED, ABORTED` (sumber: `Implementation_plan.md` §4.4). Legal = maju ke fase berikutnya atau ke recovery phases (`BLOCKED/WAITING_USER/FAILED/RECOVERY/ABORTED`). Ilegal = maju tanpa melalui fase, `COMPLETED->EXECUTING`, dsb.
+12 fase (sumber: `Implementation_plan.md` §4.4): `DRAFT, PLANNING, PLAN_REVIEW, READY, EXECUTING, VERIFYING, BLOCKED, WAITING_USER, FAILED, RECOVERY, COMPLETED, ABORTED`.
+
+Model transisi = **state machine dengan edge eksplisit**, bukan monotonic index (dari contoh legal di §4.4: `VERIFYING->READY`, `RECOVERY->READY` legal walau mundur). Tabel edge `PHASE_TRANSITIONS`:
+
+```
+DRAFT       -> PLANNING, PLAN_REVIEW
+PLANNING    -> PLAN_REVIEW, READY, DRAFT
+PLAN_REVIEW -> READY, PLANNING
+READY       -> EXECUTING, COMPLETED, PLAN_REVIEW
+EXECUTING   -> VERIFYING, BLOCKED
+VERIFYING   -> READY, FAILED, EXECUTING
+FAILED      -> RECOVERY
+RECOVERY    -> READY, EXECUTING
+BLOCKED     -> WAITING_USER, EXECUTING
+WAITING_USER-> READY, PLANNING
+COMPLETED   -> (terminal)
+ABORTED     -> (terminal)
+```
+
+Aturan: target di `RECOVERY_PHASES` (`BLOCKED/WAITING_USER/FAILED/RECOVERY/ABORTED`) selalu legal dari fase mana pun. Source tanpa row eksplisit default = maju satu fase. `COMPLETED`/`ABORTED` terminal (tidak bisa keluar). Ilegal: `COMPLETED->EXECUTING`, `ABORTED->READY`, dst.
 
 ### 3.5 Event log `events.jsonl` (Phase 4.5)
 Satu JSON per baris:

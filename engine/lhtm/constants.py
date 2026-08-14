@@ -1,5 +1,5 @@
 # engine/lhtm/constants.py
-"""Canonical constants: phase, task status, execution mode, field names."""
+"""Canonical constants: phases, task statuses, execution modes, policy."""
 
 SCHEMA_VERSION = "1.0"
 
@@ -43,7 +43,24 @@ DEFAULT_POLICY = {
     "max_repair_attempts": 2,
 }
 
-# Phase transition: legal = forward (index >= current) or to BLOCKED/WAITING_USER/FAILED/RECOVERY/ABORTED
+# Phase transition: explicit legal edges per Implementation_plan.md §4.4.
+# Legal source->target edges. Any source may also move to RECOVERY_* phases.
+# Phases not listed as a source default to "next phase only" (strict forward).
+PHASE_TRANSITIONS = {
+    "DRAFT":        {"PLANNING", "PLAN_REVIEW"},
+    "PLANNING":     {"PLAN_REVIEW", "READY", "DRAFT"},
+    "PLAN_REVIEW":  {"READY", "PLANNING"},
+    "READY":        {"EXECUTING", "COMPLETED", "PLAN_REVIEW"},
+    "EXECUTING":    {"VERIFYING", "BLOCKED"},
+    "VERIFYING":    {"READY", "FAILED", "EXECUTING"},
+    "FAILED":       {"RECOVERY"},
+    "RECOVERY":     {"READY", "EXECUTING"},
+    "BLOCKED":      {"WAITING_USER", "EXECUTING"},
+    "WAITING_USER": {"READY", "PLANNING"},
+    "COMPLETED":    set(),
+    "ABORTED":      set(),
+}
+# Recovery-phase sinks always reachable from any phase.
 RECOVERY_PHASES = {"BLOCKED", "WAITING_USER", "FAILED", "RECOVERY", "ABORTED"}
 
 def is_legal_phase_transition(current: str, target: str) -> bool:
@@ -51,4 +68,8 @@ def is_legal_phase_transition(current: str, target: str) -> bool:
         return False
     if target in RECOVERY_PHASES:
         return True
-    return PHASE_INDEX[target] >= PHASE_INDEX[current]
+    edges = PHASE_TRANSITIONS.get(current, set())
+    if edges:
+        return target in edges
+    # no explicit row: allow moving to the immediate next phase
+    return PHASE_INDEX[target] == PHASE_INDEX[current] + 1
