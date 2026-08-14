@@ -114,6 +114,15 @@ class TestSafeExecutor(unittest.TestCase):
         self.assertNotIn("hunter2", r["result"])
         self.assertIn("[REDACTED]", r["result"])
 
+    def test_redaction_disabled_lets_secret_through(self):
+        self.cfg["security"]["redact_secrets"] = False
+        self.exe = SafeExecutor(self.cfg)
+        r = self.exe.execute({"action": "run_command", "tool": "python",
+                              "args": ["-c", "print('password: hunter2')"]},
+                             approved({"allowed": True}), {})
+        self.assertTrue(r["ok"])
+        self.assertIn("hunter2", r["result"])
+
 
 if __name__ == "__main__":
     unittest.main()

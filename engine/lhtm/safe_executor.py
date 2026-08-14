@@ -8,6 +8,9 @@ from pathlib import Path
 
 from .redactor import Redactor
 
+# Cap redactor input so pathological command output cannot stall the executor.
+OVERSHOOT = 1_000_000
+
 
 class SafeExecutor:
     def __init__(self, config: dict):
@@ -102,7 +105,12 @@ class SafeExecutor:
         out = (proc.stdout or "") + (proc.stderr or "")
         out = out.strip()
         if self._redact:
-            out = self._redactor.redact(out)
+            # cap the redactor input so pathological output cannot stall the
+            # process: redact a bounded prefix, then truncate to the model limit.
+            # A secret split exactly at the overshoot edge is the residual risk,
+            # accepted for log context. (ponytail: raise OVERSHOOT if command
+            # output legitimately exceeds it and redaction latency matters.)
+            out = self._redactor.redact(out[:OVERSHOOT]) if len(out) > OVERSHOOT else self._redactor.redact(out)
         if len(out) > self._limit:
             out = out[: self._limit] + f"\n... (truncated {len(out) - self._limit} chars)"
         if proc.returncode != 0:
