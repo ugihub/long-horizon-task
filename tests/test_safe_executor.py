@@ -95,6 +95,15 @@ class TestSafeExecutor(unittest.TestCase):
         r = self.exe.execute({"action": "exploit"}, approved({"allowed": True}), {})
         self.assertFalse(r["ok"])
 
+    def test_run_command_honors_config_timeout(self):
+        self.cfg["limits"]["max_cmd_timeout"] = 1  # 1 second
+        self.exe = SafeExecutor(self.cfg)
+        r = self.exe.execute({"action": "run_command", "tool": "python",
+                              "args": ["-c", "import time; time.sleep(5)"]},
+                             approved({"allowed": True}), {})
+        self.assertFalse(r["ok"])
+        self.assertIn("timed out", r["error"].lower())
+
 
 if __name__ == "__main__":
     unittest.main()

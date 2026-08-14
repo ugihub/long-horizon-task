@@ -90,8 +90,9 @@ class SafeExecutor:
     def _run_command(self, action):
         cmd = [action.get("tool", "")] + list(action.get("args", []))
         try:
+            timeout = self.config.get("limits", {}).get("max_cmd_timeout", 60)
             proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
-                                  errors="replace", timeout=60)
+                                  errors="replace", timeout=timeout)
         except subprocess.TimeoutExpired:
             return {"ok": False, "action": "run_command", "result": None, "error": "command timed out"}
         out = (proc.stdout or "") + (proc.stderr or "")

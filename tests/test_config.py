@@ -18,6 +18,7 @@ class TestConfig(unittest.TestCase):
         self.assertIn("allowed_commands", cfg.data)
         self.assertFalse(cfg.data["security"]["allow_shell"])
         self.assertEqual(cfg.data["limits"]["max_log_chars_sent_to_model"], 3000)
+        self.assertEqual(cfg.data["limits"]["max_cmd_timeout"], 60)
 
     def test_loads_yaml_file(self):
         with open(os.path.join(self.tmp, "config.yaml"), "w", encoding="utf-8") as f:
