@@ -1,6 +1,5 @@
 # engine/lhtm/context_budget.py
 """Hierarchical context assembly with per-section caps + cascade truncation."""
-from .redactor import Redactor
 
 # Proportion of max_context_tokens per section. Sums to 1.0.
 CONTEXT_RATIOS = {
@@ -23,7 +22,6 @@ def _truncate(text: str, cap: int) -> str:
 class ContextBudget:
     def __init__(self, config=None):
         self.config = config or {}
-        self.redactor = Redactor()
 
     def build(self, state, task, config=None, errors=None, excerpts=None) -> str:
         cfg = config or self.config
@@ -62,6 +60,7 @@ class ContextBudget:
     @staticmethod
     def _task_card(task) -> str:
         lines = ["## Active Task Card",
+                 f"- Id: {task.get('id')}",
                  f"- Title: {task.get('title')}",
                  f"- Objective: {task.get('objective')}",
                  f"- Status: {task.get('status')} | Attempts: {task.get('attempts')}/{task.get('max_attempts')}",
