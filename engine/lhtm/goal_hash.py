@@ -1,6 +1,8 @@
 # engine/lhtm/goal_hash.py
+"""Anti silent-goal-change guardrail: freeze goal text with sha256, verify on load."""
 import hashlib
 from datetime import datetime, timezone
+
 
 class GoalHash:
     @staticmethod
@@ -14,7 +16,7 @@ class GoalHash:
 
     @staticmethod
     def check(state: dict) -> None:
-        if "hash" not in state or "text" not in state:
+        if not isinstance(state, dict) or "hash" not in state or "text" not in state:
             raise ValueError("Goal hash missing from state")
         expected = hashlib.sha256(state["text"].encode("utf-8")).hexdigest()
         if state["hash"] != expected:

@@ -30,5 +30,22 @@ class TestGoalHash(unittest.TestCase):
         with self.assertRaises(ValueError):
             gh.check({})
 
+    def test_check_one_key_only_raises(self):
+        gh = GoalHash()
+        with self.assertRaises(ValueError):
+            gh.check({"hash": "0" * 64})
+        with self.assertRaises(ValueError):
+            gh.check({"text": "Build a todo app"})
+
+    def test_check_non_dict_raises(self):
+        gh = GoalHash()
+        with self.assertRaises(ValueError):
+            gh.check(None)
+
+    def test_empty_goal_freezes_and_checks(self):
+        gh = GoalHash()
+        state = gh.freeze("")
+        gh.check(state)  # should not raise
+
 if __name__ == "__main__":
     unittest.main()
