@@ -46,6 +46,12 @@ class TestContextBuilder(unittest.TestCase):
         self.assertIn("SUPERVISED", ctx)
         self.assertIn("1/3", ctx)
 
+    def test_redacts_secrets_in_output(self):
+        ctx = self.b.build(self.state, self.state["tasks"][0], DEFAULT_CONFIG,
+                           errors=["password: hunter2"])
+        self.assertNotIn("hunter2", ctx)
+        self.assertIn("[REDACTED]", ctx)
+
 
 if __name__ == "__main__":
     unittest.main()
