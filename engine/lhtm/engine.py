@@ -1,0 +1,142 @@
+# engine/lhtm/engine.py
+import json
+from datetime import datetime, timezone
+from .state_store import StateStore
+from .schema_validator import SchemaValidator
+from .goal_hash import GoalHash
+from .markdown_view import MarkdownView
+from .constants import DEFAULT_POLICY
+
+# Test contract (docs plan Task 8): load_plan must land in phase "REVIEW".
+# Plan doc's impl snippet wrote "PLAN_REVIEW" but the plan's own test asserts "REVIEW".
+PHASE_AFTER_LOAD = "REVIEW"
+
+# statuses activate_task may promote (tests activate pending tasks straight after load_plan)
+ACTIVATABLE_STATUSES = {"pending", "ready"}
+
+
+class LhtmEngine:
+    def __init__(self, base_dir: str):
+        self.store = StateStore(base_dir)
+        self.validator = SchemaValidator()
+        self.view = MarkdownView()
+        self.state = self.store.load_state()
+        # ensure policy defaults
+        if not self.state.get("policy"):
+            self.state["policy"] = dict(DEFAULT_POLICY)
+
+    def _save(self):
+        self.store.acquire_lock()
+        try:
+            self.store.save_state(self.state)
+        finally:
+            self.store.release_lock()
+
+    def _log_event(self, event: str, task_id: str = None, data: dict = None):
+        entry = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "event": event,
+            "task_id": task_id,
+            "data": data or {},
+        }
+        with open(self.store.events_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry) + "\n")
+
+    def set_goal(self, text: str):
+        self.state["goal"] = GoalHash.freeze(text)
+        self._log_event("goal.frozen", data={"hash": self.state["goal"]["hash"]})
+        self._save()
+
+    def load_plan(self, plan: dict):
+        errs = self.validator.validate_plan(plan)
+        if errs:
+            raise ValueError(f"Invalid plan: {'; '.join(errs)}")
+        # ensure goal_hash matches
+        if plan["goal_hash"] != self.state["goal"]["hash"]:
+            raise ValueError("Plan goal_hash does not match current goal")
+        self.state["tasks"] = plan["tasks"]
+        self.state["phase"] = PHASE_AFTER_LOAD
+        self._log_event("plan.submitted")
+        self._save()
+
+    def approve_plan(self):
+        self.state["phase"] = "READY"
+        self._log_event("plan.approved")
+        self._save()
+
+    def activate_task(self, task_id: str):
+        task = self._find_task(task_id)
+        if not task:
+            raise ValueError(f"Task {task_id} not found")
+        if task["status"] not in ACTIVATABLE_STATUSES:
+            raise ValueError(f"Task {task_id} status is '{task['status']}', cannot activate")
+        self.state["active_task_id"] = task_id
+        task["status"] = "active"
+        task["attempts"] = task.get("attempts", 0) + 1
+        self.state["phase"] = "EXECUTING"
+        self._log_event("task.activated", task_id)
+        self._save()
+
+    def process_update(self, update: dict) -> dict:
+        task_id = update.get("task_id")
+        status = update.get("status")
+        if not task_id or not status:
+            return {"accepted": False, "errors": ["task_id and status required"]}
+
+        # validate update schema
+        errs = self.validator.validate_update(update)
+        if errs:
+            return {"accepted": False, "errors": errs}
+
+        task = self._find_task(task_id)
+        if not task:
+            return {"accepted": False, "errors": [f"Task {task_id} not found"]}
+
+        # check active task
+        if task_id != self.state.get("active_task_id"):
+            return {"accepted": False, "errors": [f"Task {task_id} is not active. Active: {self.state.get('active_task_id')}"]}
+
+        # check transition is legal
+        trans_errs = self.validator.validate_transition(task["status"], status)
+        if trans_errs:
+            return {"accepted": False, "errors": trans_errs}
+
+        # apply update
+        task["status"] = status
+        if "evidence" in update:
+            task["evidence"] = update["evidence"]
+        if "artifacts" in update:
+            task["artifacts"] = update["artifacts"]
+        task["attempts"] = task.get("attempts", 0) + 1
+
+        # if failed, clear active task
+        if status == "failed":
+            self.state["active_task_id"] = None
+            self._log_event("task.failed", task_id)
+        elif status == "claimed_done":
+            self._log_event("task.claimed_done", task_id)
+        elif status == "blocked":
+            self.state["active_task_id"] = None
+            self._log_event("task.blocked", task_id)
+
+        self._save()
+        return {"accepted": True, "errors": []}
+
+    def render_tracker(self) -> str:
+        return self.view.render_tracker(self.state)
+
+    def get_events(self, limit: int = 50) -> list[dict]:
+        events = []
+        if self.store.events_path.exists():
+            with open(self.store.events_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        events.append(json.loads(line))
+        return events[-limit:]
+
+    def _find_task(self, task_id: str) -> dict | None:
+        for t in self.state.get("tasks", []):
+            if t["id"] == task_id:
+                return t
+        return None

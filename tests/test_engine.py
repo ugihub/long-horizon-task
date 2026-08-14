@@ -1,0 +1,105 @@
+# tests/test_engine.py
+import unittest, tempfile, shutil, os
+from engine.lhtm.engine import LhtmEngine
+from engine.lhtm.goal_hash import GoalHash
+
+class TestEngine(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.engine = LhtmEngine(self.tmpdir)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_initialized_state(self):
+        state = self.engine.state
+        self.assertEqual(state["phase"], "DRAFT")
+        self.assertEqual(state["mode"], "DRY_RUN")
+        self.assertEqual(state["active_task_id"], None)
+
+    def test_set_goal(self):
+        self.engine.set_goal("Build a todo app")
+        self.assertEqual(self.engine.state["goal"]["text"], "Build a todo app")
+        self.assertEqual(len(self.engine.state["goal"]["hash"]), 64)
+
+    def test_load_plan(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.assertEqual(len(self.engine.state["tasks"]), 1)
+        self.assertEqual(self.engine.state["phase"], "REVIEW")
+
+    def test_process_update(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.activate_task("T01")
+        result = self.engine.process_update({"task_id": "T01", "status": "claimed_done", "evidence": [{"type": "test", "path": "x", "note": "done"}]})
+        self.assertTrue(result["accepted"])
+        self.assertEqual(self.engine.state["tasks"][0]["status"], "claimed_done")
+
+    def test_process_update_rejects_engine_owned(self):
+        self.engine.set_goal("Build app")
+        result = self.engine.process_update({"task_id": "T01", "status": "verified_done"})
+        self.assertFalse(result["accepted"])
+
+    def test_process_update_rejects_illegal_transition(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.activate_task("T01")
+        # illegal: pending -> active -> claimed_done is fine, but pending -> verified_done directly is not
+        result = self.engine.process_update({"task_id": "T01", "status": "verified_done"})
+        self.assertFalse(result["accepted"])
+
+    def test_render_tracker(self):
+        self.engine.set_goal("Build app")
+        md = self.engine.render_tracker()
+        self.assertIn("Build app", md)
+
+    def test_events_logged(self):
+        self.engine.set_goal("Build app")
+        events = self.engine.get_events()
+        self.assertGreaterEqual(len(events), 1)
+        self.assertEqual(events[0]["event"], "goal.frozen")
+
+if __name__ == "__main__":
+    unittest.main()
