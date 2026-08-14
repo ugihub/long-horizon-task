@@ -1,5 +1,6 @@
 # LHTM runtime state
-.lhtm/
+.lhtm/*
+!.lhtm/config.yaml
 
 # Python
 __pycache__/

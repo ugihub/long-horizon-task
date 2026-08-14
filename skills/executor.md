@@ -1,4 +1,4 @@
-# Executor Skill — Per-Turn Execution
+# Executor Skill - Per-Turn Execution
 
 ## Input
 - Active task card (from planner)
@@ -16,3 +16,6 @@
 - Only paths in `allowed_paths`. Do not touch files outside.
 - `claimed_done` requires evidence for every item in `definition_of_done`.
 - Max attempts per task is `max_attempts`. After that, propose `failed`.
+- Propose actions via `proposed_actions`; the engine's action gate validates each one.
+- `write_file`/`delete_file`/`run_command` need user approval in SUPERVISED mode.
+- If an action is rejected, read the reason and propose a corrected action.

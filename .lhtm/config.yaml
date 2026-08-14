@@ -1,0 +1,60 @@
+# LHTM security policy + execution config (default: supervised)
+mode: supervised
+
+security:
+  allow_shell: false
+  allow_install: false
+  allow_network: false
+  allow_git_push: false
+  allow_delete: false
+  redact_secrets: true
+  treat_repo_content_as_untrusted: true
+
+limits:
+  max_steps: 30
+  max_repair_attempts: 2
+  max_task_attempts: 3
+  max_output_tokens: 4096
+  max_context_tokens: 20000
+  max_log_chars_sent_to_model: 3000
+
+approval:
+  require_for_file_overwrite: true
+  require_for_new_dependency: true
+  require_for_migration: true
+  require_for_git_commit: false
+  require_for_git_push: true
+
+allowed_commands:
+  - pytest
+  - ruff
+  - mypy
+  - git status
+  - git diff
+
+blocked_paths:
+  - ".env"
+  - "*.pem"
+  - "*.key"
+  - "id_rsa*"
+  - "id_ed25519*"
+  - "credentials.json"
+  - ".aws/"
+  - ".gcp/"
+  - ".kube/"
+  - "secrets/"
+  - "*.cert"
+  - ".env.*"
+  - "*credentials*"
+  - "*credential*"
+  - "*password*"
+  - "*secret*"
+  - "*token*"
+  - "*api_key*"
+  - "id_ecdsa*"
+  - "*kubeconfig*"
+  - "*.gcloud/"
+  - ".lhtm/"
+  - "node_modules/"
+  - "vendor/"
+  - ".git/"
