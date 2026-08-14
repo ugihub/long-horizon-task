@@ -1,5 +1,5 @@
 # tests/test_project_facts.py
-import os, tempfile, shutil, unittest
+import copy, os, tempfile, shutil, unittest
 from engine.lhtm.project_facts import ProjectFacts
 from engine.lhtm.config import DEFAULT_CONFIG
 
@@ -7,7 +7,7 @@ from engine.lhtm.config import DEFAULT_CONFIG
 class TestProjectFacts(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
-        self.cfg = dict(DEFAULT_CONFIG)
+        self.cfg = copy.deepcopy(DEFAULT_CONFIG)
         os.makedirs(os.path.join(self.tmp, "src"), exist_ok=True)
         with open(os.path.join(self.tmp, "src", "a.py"), "w", encoding="utf-8") as f:
             f.write("x = 1\n" * 5)
@@ -22,7 +22,7 @@ class TestProjectFacts(unittest.TestCase):
     def _facts(self):
         return ProjectFacts(self.tmp, self.cfg)
 
-    def test_scan_respects_allowed_paths(self):
+    def test_scan_respects_allowed_and_excludes_blocked(self):
         facts = self._facts().scan(["src/"])
         paths = {f["path"] for f in facts["files"]}
         self.assertIn("src/a.py", paths)
@@ -38,7 +38,13 @@ class TestProjectFacts(unittest.TestCase):
         cfg = dict(self.cfg)
         cfg["limits"]["max_facts_chars"] = 10
         f = ProjectFacts(self.tmp, cfg).scan(["src/"])
-        self.assertLessEqual(len(f["summary"]), 40)
+        self.assertIn("truncated", f["summary"])
+        self.assertLessEqual(len(f["summary"]), 26)
+
+    def test_scan_rejects_escaping_allowed_path(self):
+        # allowed_path with .. segments must not read outside the repo root
+        f = self._facts().scan(["../.."])
+        self.assertEqual(f["files"], [])
 
     def test_excerpts_read_top_files(self):
         ex = self._facts().excerpts(["src/"], n=1, max_chars=50)

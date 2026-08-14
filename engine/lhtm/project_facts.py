@@ -16,9 +16,12 @@ class ProjectFacts:
     def scan(self, allowed_paths) -> dict:
         blocked = self.config.get("blocked_paths", [])
         max_chars = int(self.config.get("limits", {}).get("max_facts_chars", 1500))
+        root_resolved = self.root.resolve()
         files = []
         for ap in allowed_paths:
-            base = self.root / ap.rstrip("/\\")
+            base = (self.root / ap.rstrip("/\\")).resolve()
+            if not base.is_relative_to(root_resolved):
+                continue  # skip paths outside the repo root
             if not base.exists():
                 continue
             if base.is_file():
@@ -33,7 +36,7 @@ class ProjectFacts:
                     lines = len(p.read_text(encoding="utf-8", errors="replace").splitlines())
                 except OSError:
                     lines = 0
-                files.append({"path": rel, "lines": lines, "mtime": os.path.getmtime(p)})
+                files.append({"path": rel, "lines": lines})
         files.sort(key=lambda f: (-f["lines"], f["path"]))
         top = files[:TOP_N]
         summary = "\n".join(f"{f['path']} ({f['lines']} lines)" for f in top)

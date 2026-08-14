@@ -117,7 +117,7 @@ class LhtmEngine:
 
     def refresh_facts(self, repo_root: str = ".", allowed_paths: list | None = None,
                       config: dict | None = None) -> str:
-        """Scan allowed_paths into .lhtm/project_facts.md (generated view)."""
+        """Scan allowed_paths into project_facts.md under the engine base_dir (the .lhtm dir)."""
         if allowed_paths is None:
             allowed_paths = list({p for t in self.state.get("tasks", [])
                                   for p in t.get("allowed_paths", [])}) or ["."]
