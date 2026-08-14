@@ -60,11 +60,16 @@ PHASE_TRANSITIONS = {
     "COMPLETED":    set(),
     "ABORTED":      set(),
 }
-# Recovery-phase sinks always reachable from any phase.
+# Recovery-phase sinks always reachable from any non-terminal phase.
 RECOVERY_PHASES = {"BLOCKED", "WAITING_USER", "FAILED", "RECOVERY", "ABORTED"}
+TERMINAL_PHASES = {"COMPLETED", "ABORTED"}
+
 
 def is_legal_phase_transition(current: str, target: str) -> bool:
     if target not in PHASE_INDEX or current not in PHASE_INDEX:
+        return False
+    # terminal phases cannot exit for any reason
+    if current in TERMINAL_PHASES:
         return False
     if target in RECOVERY_PHASES:
         return True

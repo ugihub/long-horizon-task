@@ -55,6 +55,13 @@ class TestConstants(unittest.TestCase):
         self.assertFalse(c.is_legal_phase_transition("ABORTED", "READY"))
         self.assertFalse(c.is_legal_phase_transition("COMPLETED", "READY"))
 
+    def test_terminal_cannot_exit_to_any_recovery_sink(self):
+        # terminals are absolute — even recovery sinks are unreachable
+        self.assertFalse(c.is_legal_phase_transition("COMPLETED", "ABORTED"))
+        self.assertFalse(c.is_legal_phase_transition("COMPLETED", "BLOCKED"))
+        self.assertFalse(c.is_legal_phase_transition("COMPLETED", "FAILED"))
+        self.assertFalse(c.is_legal_phase_transition("ABORTED", "RECOVERY"))
+
     def test_unknown_phase_illegal(self):
         self.assertFalse(c.is_legal_phase_transition("NONSENSE", "READY"))
         self.assertFalse(c.is_legal_phase_transition("DRAFT", "NONSENSE"))
