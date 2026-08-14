@@ -1,6 +1,7 @@
 # engine/lhtm/runbook.py
 """Deterministic runbook runner (operator-authored, never LLM-driven)."""
 import json
+import re as _re
 from pathlib import Path
 
 from .safe_executor import SafeExecutor
@@ -52,14 +53,16 @@ class RunbookRunner:
             return {"ok": False, "steps": [], "error": "; ".join(errs)}
         cfg = config or self.config
         exe = SafeExecutor(cfg)
-        state_path = Path(base_dir) / "runbooks" / f"{runbook['title']}.json"
-        state_path.parent.mkdir(parents=True, exist_ok=True)
+        safe_title = _re.sub(r"[^A-Za-z0-9_.-]", "_", runbook["title"])
+        state_path = Path(base_dir) / "runbooks" / f"{safe_title}.json"
         done = set()
         if state_path.exists():
             try:
-                done = set(json.loads(state_path.read_text(encoding="utf-8")).get("done", []))
+                raw = json.loads(state_path.read_text(encoding="utf-8")).get("done", [])
             except (ValueError, OSError):
-                done = set()
+                raw = []
+            if isinstance(raw, list):
+                done = {d for d in raw if isinstance(d, str)}
         results = []
         for s in runbook["steps"]:
             if s["id"] in done:
@@ -75,6 +78,7 @@ class RunbookRunner:
             if not r["ok"]:
                 return {"ok": False, "steps": results, "error": r["error"]}
             done.add(s["id"])
+            state_path.parent.mkdir(parents=True, exist_ok=True)
             state_path.write_text(json.dumps({"done": sorted(done)}), encoding="utf-8")
         return {"ok": True, "steps": results, "error": None}
 

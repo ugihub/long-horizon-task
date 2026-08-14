@@ -91,5 +91,17 @@ class TestRunbook(unittest.TestCase):
         self.assertTrue(r["steps"][0].get("skipped"))
 
 
+    def test_corrupt_state_file_does_not_crash(self):
+        # state file with a valid JSON shape but a non-list "done" must not raise
+        rb = make_runbook(steps=[{"id": "s1", "action": "run_command", "tool": "python",
+                                  "args": ["-c", "print('ok')"]}])
+        state_dir = os.path.join(self.tmp, "runbooks")
+        os.makedirs(state_dir, exist_ok=True)
+        with open(os.path.join(state_dir, "rb.json"), "w", encoding="utf-8") as f:
+            f.write('{"done": 5}')
+        r = self.rb.execute(rb, self.tmp, self.cfg)
+        self.assertTrue(r["ok"])  # corrupt state treated as empty, step runs
+
+
 if __name__ == "__main__":
     unittest.main()
