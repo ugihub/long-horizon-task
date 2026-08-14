@@ -39,7 +39,7 @@ class TestEngine(unittest.TestCase):
         }
         self.engine.load_plan(plan)
         self.assertEqual(len(self.engine.state["tasks"]), 1)
-        self.assertEqual(self.engine.state["phase"], "REVIEW")
+        self.assertEqual(self.engine.state["phase"], "PLAN_REVIEW")
 
     def test_process_update(self):
         self.engine.set_goal("Build app")
@@ -58,6 +58,8 @@ class TestEngine(unittest.TestCase):
         }
         self.engine.load_plan(plan)
         self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "ready"  # scheduler promotes pending -> ready
+        self.engine._save()
         self.engine.activate_task("T01")
         result = self.engine.process_update({"task_id": "T01", "status": "claimed_done", "evidence": [{"type": "test", "path": "x", "note": "done"}]})
         self.assertTrue(result["accepted"])
@@ -85,6 +87,8 @@ class TestEngine(unittest.TestCase):
         }
         self.engine.load_plan(plan)
         self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "ready"  # scheduler promotes pending -> ready
+        self.engine._save()
         self.engine.activate_task("T01")
         # illegal: pending -> active -> claimed_done is fine, but pending -> verified_done directly is not
         result = self.engine.process_update({"task_id": "T01", "status": "verified_done"})

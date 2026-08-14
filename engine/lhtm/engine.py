@@ -7,13 +7,8 @@ from .goal_hash import GoalHash
 from .markdown_view import MarkdownView
 from .constants import DEFAULT_POLICY
 
-# Test contract (docs plan Task 8): load_plan must land in phase "REVIEW".
-# Plan doc's impl snippet wrote "PLAN_REVIEW" but the plan's own test asserts "REVIEW".
-PHASE_AFTER_LOAD = "REVIEW"
-
-# statuses activate_task may promote (tests activate pending tasks straight after load_plan)
-ACTIVATABLE_STATUSES = {"pending", "ready"}
-
+# Phase after a plan is submitted, per Implementation_plan.md §4.4 (12 phases).
+PHASE_AFTER_LOAD = "PLAN_REVIEW"
 
 class LhtmEngine:
     def __init__(self, base_dir: str):
@@ -68,8 +63,8 @@ class LhtmEngine:
         task = self._find_task(task_id)
         if not task:
             raise ValueError(f"Task {task_id} not found")
-        if task["status"] not in ACTIVATABLE_STATUSES:
-            raise ValueError(f"Task {task_id} status is '{task['status']}', cannot activate")
+        if task["status"] != "ready":
+            raise ValueError(f"Task {task_id} status is '{task['status']}', must be 'ready'")
         self.state["active_task_id"] = task_id
         task["status"] = "active"
         task["attempts"] = task.get("attempts", 0) + 1
