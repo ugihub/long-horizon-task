@@ -1,9 +1,10 @@
 # scripts/run_supervised.py
-"""End-to-end supervised execution demo (P3). ASCII output, no LLM API.
+"""End-to-end supervised execution demo (P3+P4). ASCII output, no LLM API.
 
 Simulates an LLM by returning canned lhtm-update blocks. The action gate +
-safe executor + engine do the real work. Approvals are auto-granted here
-via a policy callback so the script is non-interactive.
+safe executor + engine verifier do the real work. Approvals are auto-granted
+here via a policy callback so the script is non-interactive. T03 demonstrates
+the verify-fail path: it claims a file that was never created.
 """
 import sys, os, shutil, tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -23,7 +24,7 @@ def simulate_llm(task):
         return {
             "task_id": "T01",
             "status": "claimed_done",
-            "evidence": [{"type": "file_created", "path": "src/cli.py", "note": "created"}],
+            "evidence": [{"type": "file_created", "path": "src/cli.py", "note": "cli.py exists"}],
             "artifacts": ["src/cli.py"],
             "proposed_actions": [
                 {"action": "write_file", "path": "src/cli.py",
@@ -32,15 +33,25 @@ def simulate_llm(task):
             ],
             "context": {"rationale": "scaffold done", "next_step": "T02"},
         }
+    if task["id"] == "T02":
+        return {
+            "task_id": "T02",
+            "status": "claimed_done",
+            "evidence": [{"type": "file_created", "path": "src/parser.py", "note": "parser.py exists"}],
+            "artifacts": ["src/parser.py"],
+            "proposed_actions": [
+                {"action": "write_file", "path": "src/parser.py", "content": "def parse(a): return a\n"},
+            ],
+            "context": {"rationale": "parser done", "next_step": "T03"},
+        }
+    # T03: claims a file that was never created -> verifier fails
     return {
-        "task_id": "T02",
+        "task_id": "T03",
         "status": "claimed_done",
-        "evidence": [{"type": "file_created", "path": "src/parser.py", "note": "created"}],
-        "artifacts": ["src/parser.py"],
-        "proposed_actions": [
-            {"action": "write_file", "path": "src/parser.py", "content": "def parse(a): return a\n"},
-        ],
-        "context": {"rationale": "parser done", "next_step": "none"},
+        "evidence": [{"type": "file_created", "path": "src/config.py", "note": "config.py exists"}],
+        "artifacts": ["src/config.py"],
+        "proposed_actions": [],
+        "context": {"rationale": "config done", "next_step": "none"},
     }
 
 
@@ -78,6 +89,11 @@ def main():
              "allowed_paths": ["src/"], "allowed_commands": [],
              "definition_of_done": ["parser.py exists"], "artifacts": [],
              "evidence": [], "attempts": 0, "max_attempts": 3},
+            {"id": "T03", "title": "Config", "objective": "Add config.py",
+             "status": "pending", "depends_on": ["T02"], "risk_level": "low",
+             "allowed_paths": ["src/"], "allowed_commands": [],
+             "definition_of_done": ["config.py exists"], "artifacts": [],
+             "evidence": [], "attempts": 0, "max_attempts": 3},
         ],
         "open_questions": [], "metadata": {}, "approved": False,
     }
@@ -102,14 +118,9 @@ def main():
             engine.activate_task(task["id"])
             task = next(t for t in engine.state["tasks"] if t["id"] == task["id"])
 
-        # mark deps verified for the demo (real verifier comes in P4)
-        for t in engine.state["tasks"]:
-            if t["status"] == "claimed_done":
-                t["status"] = "verified_done"
-        engine._save()
-
         ctx = builder.build(engine.state, task, cfg.data)
         update = simulate_llm(task)
+
         # gate + execute each proposed action
         for action in update.get("proposed_actions", []):
             decision = gate.check(action, task, cfg.data, engine.state.get("mode"), task["id"])
@@ -124,19 +135,17 @@ def main():
             status = "ok" if result["ok"] else "error"
             print(f"  [exec] {action['action']} {action.get('path', '')}: {status}")
 
-        # engine processes the status update (evidence, artifacts)
+        # engine processes the status update; claimed_done is verified atomically
         result = engine.process_update(update)
-        print(f"[engine] update {update['task_id']} -> {update['status']}: "
-              f"{'accepted' if result['accepted'] else result['errors']}")
+        extra = ""
+        if result.get("verdict"):
+            extra = f" | verdict={result['verdict']}"
+        if result.get("feedback"):
+            extra += f" | feedback={result['feedback']}"
+        print(f"[engine] update {update['task_id']} -> {engine._find_task(update['task_id'])['status']}: "
+              f"{'accepted' if result['accepted'] else result['errors']}{extra}")
         if not result["accepted"]:
             break
-
-        if update["status"] == "claimed_done":
-            # engine keeps active_task_id set on claimed_done; clear it and mark the
-            # task verified here so the scheduler can advance (real verifier in P4).
-            engine.state["active_task_id"] = None
-            task["status"] = "verified_done"
-            engine._save()
 
     print()
     print("=" * 60)
@@ -146,8 +155,10 @@ def main():
     for e in engine.get_events():
         if e.get("event") == "step":
             print(f"  [{e['action']}] {e['result']} ({e['duration_ms']}ms)")
-    print("\nV Supervised Tahap 2 demo passed!")
+    print("\nV Supervised Tahap 2+3 demo passed!")
     shutil.rmtree(base_dir, ignore_errors=True)
+    # demo writes are CWD-relative (src/cli.py etc.); clean them up
+    shutil.rmtree("src", ignore_errors=True)
 
 
 if __name__ == "__main__":
