@@ -1,0 +1,13 @@
+test_extract_invalid_json_returns_repair_block (tests.test_parser.TestParser.test_extract_invalid_json_returns_repair_block) ... ok
+test_extract_multiple_blocks (tests.test_parser.TestParser.test_extract_multiple_blocks) ... ok
+test_extract_single_block (tests.test_parser.TestParser.test_extract_single_block) ... ok
+test_no_block_returns_empty (tests.test_parser.TestParser.test_no_block_returns_empty) ... ok
+test_repair_trailing_comma (tests.test_parser.TestParser.test_repair_trailing_comma) ... ok
+test_repair_unclosed_quotes (tests.test_parser.TestParser.test_repair_unclosed_quotes) ... ok
+test_repair_will_not_attempt_beyond_max (tests.test_parser.TestParser.test_repair_will_not_attempt_beyond_max) ... ok
+test_schema_validation_on_extract (tests.test_parser.TestParser.test_schema_validation_on_extract) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.002s
+
+OK
