@@ -304,5 +304,76 @@ class TestEngine(unittest.TestCase):
         self.assertEqual(self.engine.state["tasks"][0]["status"], "verified_done")
         self.assertNotIn("feedback", self.engine.state["tasks"][0])
 
+    def test_set_mode_valid(self):
+        self.engine.set_goal("Build app")
+        self.engine.set_mode("AUTO_SAFE")
+        self.assertEqual(self.engine.state["mode"], "AUTO_SAFE")
+
+    def test_set_mode_invalid_raises(self):
+        self.engine.set_goal("Build app")
+        with self.assertRaises(ValueError):
+            self.engine.set_mode("INJECTED")
+
+    def test_recover_retry_with_hint(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": ["."],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 1, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "failed"  # scheduler/LLM led task to failed
+        self.engine._save()
+        result = self.engine.recover("T01", {"action": "retry_with_hint", "hint": "fix import"})
+        self.assertTrue(result["ok"])
+        self.assertEqual(self.engine.state["tasks"][0]["status"], "ready")
+        self.assertEqual(self.engine.state["tasks"][0]["feedback"], "fix import")
+
+    def test_recover_unknown_action(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0", "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"], "title": "P", "objective": "D",
+            "tasks": [{"id": "T01", "title": "A", "objective": "", "status": "pending",
+                       "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                       "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                       "evidence": [], "attempts": 1, "max_attempts": 3}],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        result = self.engine.recover("T01", {"action": "explode"})
+        self.assertFalse(result["ok"])
+        self.assertIn("unknown", result["error"])
+
+    def test_recover_clears_active_task(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0", "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"], "title": "P", "objective": "D",
+            "tasks": [{"id": "T01", "title": "A", "objective": "", "status": "pending",
+                       "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                       "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                       "evidence": [], "attempts": 1, "max_attempts": 3}],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "failed"
+        self.engine.state["active_task_id"] = "T01"
+        self.engine._save()
+        # retry_with_hint is legal from 'failed' (failed -> ready); mark_blocked is not
+        result = self.engine.recover("T01", {"action": "retry_with_hint"})
+        self.assertTrue(result["ok"])
+        self.assertIsNone(self.engine.state["active_task_id"])
+
 if __name__ == "__main__":
     unittest.main()

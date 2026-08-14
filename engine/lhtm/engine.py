@@ -6,7 +6,8 @@ from .schema_validator import SchemaValidator
 from .goal_hash import GoalHash
 from .markdown_view import MarkdownView
 from .evidence_verifier import EvidenceVerifier
-from .constants import DEFAULT_POLICY
+from .recovery import RecoveryOrchestrator
+from .constants import EXECUTION_MODES, DEFAULT_POLICY
 
 # Phase after a plan is submitted, per Implementation_plan.md §4.4 (12 phases).
 PHASE_AFTER_LOAD = "PLAN_REVIEW"
@@ -17,6 +18,7 @@ class LhtmEngine:
         self.validator = SchemaValidator()
         self.view = MarkdownView()
         self.verifier = EvidenceVerifier()
+        self.recovery = RecoveryOrchestrator()
         self.state = self.store.load_state()
         # ensure policy defaults
         if not self.state.get("policy"):
@@ -84,6 +86,31 @@ class LhtmEngine:
         self.state["phase"] = "EXECUTING"
         self._log_event("task.activated", task_id)
         self._save()
+
+    def set_mode(self, mode: str):
+        mode = mode.upper()
+        if mode not in EXECUTION_MODES:
+            raise ValueError(f"invalid mode '{mode}'. Must be one of {EXECUTION_MODES}")
+        self.state["mode"] = mode
+        self._log_event("mode.changed", data={"mode": mode})
+        self._save()
+
+    def recover(self, task_id: str, action: dict) -> dict:
+        """Validate + apply a recovery action. Saves on success, returns {'ok': bool}."""
+        errs = self.recovery.validate_action(self.state, task_id, action, self.state.get("policy", {}))
+        if errs:
+            return {"ok": False, "error": "; ".join(errs)}
+        task = self._find_task(task_id)
+        if task is None:
+            return {"ok": False, "error": f"task {task_id} not found"}
+        result = self.recovery.apply(self.state, task, action, self.state.get("policy", {}))
+        if not result.get("ok"):
+            return result
+        # a recovered task is no longer active
+        self.state["active_task_id"] = None
+        self._log_event("recovery.action", task_id, data={"action": action.get("action")})
+        self._save()
+        return {"ok": True, "error": None}
 
     def process_update(self, update: dict) -> dict:
         task_id = update.get("task_id")
