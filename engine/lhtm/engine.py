@@ -131,6 +131,7 @@ class LhtmEngine:
             if verdict == "pass":
                 # engine-owned transition: verified_done is never settable by the LLM
                 task["status"] = "verified_done"
+                task.pop("feedback", None)  # clear stale failure feedback on retry-pass
                 self.state["active_task_id"] = None
                 self._log_event("task.verified", task_id)
             else:

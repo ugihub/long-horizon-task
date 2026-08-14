@@ -266,5 +266,43 @@ class TestEngine(unittest.TestCase):
         events = [e for e in self.engine.get_events() if e["event"] == "task.verified"]
         self.assertEqual(len(events), 1)
 
+    def test_stale_feedback_cleared_on_retry_pass(self):
+        # a failed verify leaves feedback; a later retry that passes must clear it
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": ["."],
+                 "allowed_commands": [], "definition_of_done": ["zork missing thing"],
+                 "artifacts": [], "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "ready"
+        self.engine._save()
+        self.engine.activate_task("T01")
+        # fail first: evidence does not cover the DoD
+        self.engine.process_update({"task_id": "T01", "status": "claimed_done",
+                                    "evidence": [{"type": "observation", "note": "did some work"}]})
+        self.assertEqual(self.engine.state["tasks"][0]["status"], "failed")
+        self.assertIn("not covered", self.engine.state["tasks"][0]["feedback"])
+        # retry: failed -> ready -> active -> claimed_done (evidence now covers DoD)
+        t = self.engine.state["tasks"][0]
+        self.engine.state["active_task_id"] = None
+        t["status"] = "ready"
+        self.engine._save()
+        self.engine.activate_task("T01")
+        self.engine.process_update({"task_id": "T01", "status": "claimed_done",
+                                    "evidence": [{"type": "observation",
+                                                  "note": "zork missing thing is done"}]})
+        self.assertEqual(self.engine.state["tasks"][0]["status"], "verified_done")
+        self.assertNotIn("feedback", self.engine.state["tasks"][0])
+
 if __name__ == "__main__":
     unittest.main()
