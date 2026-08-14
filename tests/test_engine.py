@@ -375,5 +375,19 @@ class TestEngine(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertIsNone(self.engine.state["active_task_id"])
 
+    def test_refresh_facts_writes_md(self):
+        self.engine.set_goal("Build app")
+        tmp = tempfile.mkdtemp()
+        try:
+            os.makedirs(os.path.join(tmp, "src"), exist_ok=True)
+            with open(os.path.join(tmp, "src", "a.py"), "w", encoding="utf-8") as f:
+                f.write("x = 1\n" * 4)
+            md = self.engine.refresh_facts(repo_root=tmp, allowed_paths=["src/"], config={})
+            self.assertIn("src/a.py", md)
+            facts_path = os.path.join(self.tmpdir, "project_facts.md")
+            self.assertTrue(os.path.exists(facts_path))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
 if __name__ == "__main__":
     unittest.main()

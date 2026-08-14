@@ -7,6 +7,7 @@ from .goal_hash import GoalHash
 from .markdown_view import MarkdownView
 from .evidence_verifier import EvidenceVerifier
 from .recovery import RecoveryOrchestrator
+from .project_facts import ProjectFacts
 from .constants import EXECUTION_MODES, DEFAULT_POLICY
 
 # Phase after a plan is submitted, per Implementation_plan.md §4.4 (12 phases).
@@ -113,6 +114,17 @@ class LhtmEngine:
         self._log_event("recovery.action", task_id, data={"action": action.get("action")})
         self._save()
         return {"ok": True, "error": None}
+
+    def refresh_facts(self, repo_root: str = ".", allowed_paths: list | None = None,
+                      config: dict | None = None) -> str:
+        """Scan allowed_paths into .lhtm/project_facts.md (generated view)."""
+        if allowed_paths is None:
+            allowed_paths = list({p for t in self.state.get("tasks", [])
+                                  for p in t.get("allowed_paths", [])}) or ["."]
+        facts = ProjectFacts(repo_root, config or {})
+        text = facts.render(allowed_paths)
+        (self.store.base_dir / "project_facts.md").write_text(text, encoding="utf-8")
+        return text
 
     def process_update(self, update: dict) -> dict:
         task_id = update.get("task_id")
