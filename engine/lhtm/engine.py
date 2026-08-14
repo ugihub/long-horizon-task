@@ -5,6 +5,7 @@ from .state_store import StateStore
 from .schema_validator import SchemaValidator
 from .goal_hash import GoalHash
 from .markdown_view import MarkdownView
+from .evidence_verifier import EvidenceVerifier
 from .constants import DEFAULT_POLICY
 
 # Phase after a plan is submitted, per Implementation_plan.md §4.4 (12 phases).
@@ -15,6 +16,7 @@ class LhtmEngine:
         self.store = StateStore(base_dir)
         self.validator = SchemaValidator()
         self.view = MarkdownView()
+        self.verifier = EvidenceVerifier()
         self.state = self.store.load_state()
         # ensure policy defaults
         if not self.state.get("policy"):
@@ -116,17 +118,32 @@ class LhtmEngine:
         # attempts counted once per activation (see activate_task); no increment here
 
         # if failed, clear active task
+        verdict = None
+        feedback = None
         if status == "failed":
             self.state["active_task_id"] = None
             self._log_event("task.failed", task_id)
         elif status == "claimed_done":
             self._log_event("task.claimed_done", task_id)
+            v = self.verifier.verify(self.state, task, {})
+            verdict = v["verdict"]
+            feedback = v["feedback"]
+            if verdict == "pass":
+                # engine-owned transition: verified_done is never settable by the LLM
+                task["status"] = "verified_done"
+                self.state["active_task_id"] = None
+                self._log_event("task.verified", task_id)
+            else:
+                task["status"] = "failed"
+                task["feedback"] = feedback
+                self.state["active_task_id"] = None
+                self._log_event("task.verify_failed", task_id)
         elif status == "blocked":
             self.state["active_task_id"] = None
             self._log_event("task.blocked", task_id)
 
         self._save()
-        return {"accepted": True, "errors": []}
+        return {"accepted": True, "errors": [], "verdict": verdict, "feedback": feedback}
 
     def render_tracker(self) -> str:
         return self.view.render_tracker(self.state)

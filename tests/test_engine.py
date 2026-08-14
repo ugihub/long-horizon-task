@@ -50,7 +50,7 @@ class TestEngine(unittest.TestCase):
             "title": "Plan", "objective": "Do",
             "tasks": [
                 {"id": "T01", "title": "A", "objective": "", "status": "pending",
-                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "depends_on": [], "risk_level": "low", "allowed_paths": ["."],
                  "allowed_commands": [], "definition_of_done": [], "artifacts": [],
                  "evidence": [], "attempts": 0, "max_attempts": 3},
             ],
@@ -61,9 +61,12 @@ class TestEngine(unittest.TestCase):
         self.engine.state["tasks"][0]["status"] = "ready"  # scheduler promotes pending -> ready
         self.engine._save()
         self.engine.activate_task("T01")
-        result = self.engine.process_update({"task_id": "T01", "status": "claimed_done", "evidence": [{"type": "test", "path": "x", "note": "done"}]})
+        result = self.engine.process_update({"task_id": "T01", "status": "claimed_done",
+                                             "evidence": [{"type": "observation", "note": "done"}]})
         self.assertTrue(result["accepted"])
-        self.assertEqual(self.engine.state["tasks"][0]["status"], "claimed_done")
+        self.assertEqual(result["verdict"], "pass")
+        self.assertEqual(self.engine.state["tasks"][0]["status"], "verified_done")
+        self.assertIsNone(self.engine.state["active_task_id"])
 
     def test_activate_rejects_second_active_task(self):
         self.engine.set_goal("Build app")
@@ -135,7 +138,8 @@ class TestEngine(unittest.TestCase):
         self.engine.state["tasks"][0]["status"] = "ready"
         self.engine._save()
         self.engine.activate_task("T01")
-        self.engine.process_update({"task_id": "T01", "status": "claimed_done", "evidence": [{"type": "test", "path": "x", "note": "done"}]})
+        self.engine.process_update({"task_id": "T01", "status": "claimed_done",
+                                    "evidence": [{"type": "observation", "note": "done"}]})
         self.assertEqual(self.engine.state["tasks"][0]["attempts"], 1)
 
     def test_process_update_rejects_active_status(self):
@@ -208,6 +212,59 @@ class TestEngine(unittest.TestCase):
         events = self.engine.get_events()
         self.assertGreaterEqual(len(events), 1)
         self.assertEqual(events[0]["event"], "goal.frozen")
+
+    def test_claimed_done_bad_evidence_becomes_failed(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": ["."],
+                 "allowed_commands": [], "definition_of_done": ["zork missing thing"],
+                 "artifacts": [], "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "ready"
+        self.engine._save()
+        self.engine.activate_task("T01")
+        result = self.engine.process_update({"task_id": "T01", "status": "claimed_done",
+                                             "evidence": [{"type": "observation", "note": "done"}]})
+        self.assertTrue(result["accepted"])
+        self.assertEqual(result["verdict"], "fail")
+        self.assertEqual(self.engine.state["tasks"][0]["status"], "failed")
+        self.assertIn("not covered", self.engine.state["tasks"][0]["feedback"])
+        self.assertIsNone(self.engine.state["active_task_id"])
+
+    def test_verified_done_event_logged(self):
+        self.engine.set_goal("Build app")
+        plan = {
+            "schema_version": "1.0",
+            "run_id": self.engine.state["run_id"],
+            "goal_hash": self.engine.state["goal"]["hash"],
+            "title": "Plan", "objective": "Do",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": ["."],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        self.engine.load_plan(plan)
+        self.engine.approve_plan()
+        self.engine.state["tasks"][0]["status"] = "ready"
+        self.engine._save()
+        self.engine.activate_task("T01")
+        self.engine.process_update({"task_id": "T01", "status": "claimed_done",
+                                    "evidence": [{"type": "observation", "note": "done"}]})
+        events = [e for e in self.engine.get_events() if e["event"] == "task.verified"]
+        self.assertEqual(len(events), 1)
 
 if __name__ == "__main__":
     unittest.main()
