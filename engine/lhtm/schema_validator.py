@@ -1,7 +1,7 @@
 # engine/lhtm/schema_validator.py
 from .constants import (
-    SCHEMA_VERSION, PHASES, PHASE_INDEX, TASK_STATUSES,
-    LEGAL_TASK_TRANSITIONS, LLM_WRITABLE_STATUSES,
+    SCHEMA_VERSION, PHASES, TASK_STATUSES,
+    LEGAL_TASK_TRANSITIONS,
     ENGINE_OWNED_STATUSES, EXECUTION_MODES, is_legal_phase_transition,
 )
 
@@ -10,6 +10,21 @@ REQUIRED_TASK_FIELDS = [
     "risk_level", "allowed_paths", "allowed_commands",
     "definition_of_done", "artifacts", "evidence", "attempts", "max_attempts",
 ]
+
+
+def _validate_task(t: dict, initial_only: bool = False) -> list[str]:
+    """Validate a single task dict. Returns list of error strings."""
+    errs = []
+    tid = t.get("id", "?")
+    for field in REQUIRED_TASK_FIELDS:
+        if field not in t:
+            errs.append(f"task {tid}: missing field '{field}'")
+    if t.get("status") not in TASK_STATUSES:
+        errs.append(f"task {tid}: invalid status '{t.get('status')}'")
+    if initial_only and t.get("status") != "pending":
+        errs.append(f"task {tid}: initial status must be 'pending', got '{t.get('status')}'")
+    return errs
+
 
 class SchemaValidator:
     def validate_state(self, state: dict) -> list[str]:
@@ -22,6 +37,8 @@ class SchemaValidator:
             errs.append(f"invalid mode: '{state.get('mode')}'. Must be one of {EXECUTION_MODES}")
         if "goal" not in state or "hash" not in state.get("goal", {}):
             errs.append("state missing goal.hash")
+        for t in state.get("tasks", []):
+            errs.extend(_validate_task(t))
         return errs
 
     def validate_plan(self, plan: dict) -> list[str]:
@@ -31,17 +48,15 @@ class SchemaValidator:
         task_ids = set()
         for t in plan.get("tasks", []):
             tid = t.get("id", "?")
+            if tid in task_ids:
+                errs.append(f"duplicate task id: '{tid}'")
             task_ids.add(tid)
-            for field in REQUIRED_TASK_FIELDS:
-                if field not in t:
-                    errs.append(f"task {tid}: missing field '{field}'")
-            if t.get("status") != "pending":
-                errs.append(f"task {tid}: initial status must be 'pending', got '{t.get('status')}'")
+            errs.extend(_validate_task(t, initial_only=True))
         # check depends_on references exist
         for t in plan.get("tasks", []):
             for dep in t.get("depends_on", []):
                 if dep not in task_ids:
-                    errs.append(f"task {t['id']}: depends_on '{dep}' not found in task list")
+                    errs.append(f"task {t.get('id', '?')}: depends_on '{dep}' not found in task list")
         # cycle detection (topological sort)
         edges = []
         for t in plan.get("tasks", []):
@@ -86,6 +101,8 @@ class SchemaValidator:
             errs.append(f"invalid status: '{status}'")
         elif status in ENGINE_OWNED_STATUSES:
             errs.append(f"status '{status}' is engine-owned. LLM may not set it.")
+        if status == "claimed_done" and not update.get("evidence"):
+            errs.append("claimed_done requires evidence")
         return errs
 
     def validate_transition(self, from_status: str, to_status: str) -> list[str]:

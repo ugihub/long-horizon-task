@@ -106,7 +106,7 @@ class TestSchemaValidator(unittest.TestCase):
         self.assertTrue(any("T99" in e for e in errs))
 
     def test_validate_update_legal(self):
-        errs = self.v.validate_update({"task_id": "T01", "status": "claimed_done"})
+        errs = self.v.validate_update({"task_id": "T01", "status": "active"})
         self.assertEqual(errs, [])
 
     def test_validate_update_engine_owned_status(self):
@@ -136,6 +136,43 @@ class TestSchemaValidator(unittest.TestCase):
     def test_legal_recovery_phase_transition(self):
         errs = self.v.validate_phase_transition("EXECUTING", "BLOCKED")
         self.assertEqual(errs, [])
+
+    def test_claimed_done_requires_evidence(self):
+        errs = self.v.validate_update({"task_id": "T01", "status": "claimed_done"})
+        self.assertTrue(any("evidence" in e for e in errs))
+        # with evidence it's fine
+        errs = self.v.validate_update({"task_id": "T01", "status": "claimed_done", "evidence": [{"type": "test", "path": "x"}]})
+        self.assertEqual(errs, [])
+
+    def test_validate_state_checks_tasks(self):
+        state = {
+            "schema_version": "1.0", "run_id": "r", "goal": {"text": "g", "hash": "0" * 64},
+            "phase": "DRAFT", "mode": "DRY_RUN", "active_task_id": None, "policy": {},
+            "tasks": [{"no": "id"}], "current_step": 0,
+        }
+        errs = self.v.validate_state(state)
+        self.assertTrue(any("missing field" in e for e in errs))
+
+    def test_validate_plan_duplicate_task_ids(self):
+        plan = {
+            "schema_version": "1.0",
+            "run_id": "test-123",
+            "goal_hash": "x" * 64,
+            "title": "Dup", "objective": "X",
+            "tasks": [
+                {"id": "T01", "title": "A", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+                {"id": "T01", "title": "B", "objective": "", "status": "pending",
+                 "depends_on": [], "risk_level": "low", "allowed_paths": [],
+                 "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+                 "evidence": [], "attempts": 0, "max_attempts": 3},
+            ],
+            "open_questions": [], "metadata": {}, "approved": False,
+        }
+        errs = self.v.validate_plan(plan)
+        self.assertTrue(any("duplicate" in e for e in errs))
 
 if __name__ == "__main__":
     unittest.main()
