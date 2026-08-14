@@ -1,6 +1,7 @@
 # engine/lhtm/safe_executor.py
 """Execute actions that passed the ActionGate. SUPERVISED default."""
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -71,7 +72,6 @@ class SafeExecutor:
         return {"ok": True, "action": "list_files", "result": names[:100], "error": None}
 
     def _search_code(self, action):
-        import re
         pattern = action.get("pattern", "")
         path = Path(action.get("path", "."))
         rx = re.compile(pattern)
@@ -90,7 +90,8 @@ class SafeExecutor:
     def _run_command(self, action):
         cmd = [action.get("tool", "")] + list(action.get("args", []))
         try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+            proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8",
+                                  errors="replace", timeout=60)
         except subprocess.TimeoutExpired:
             return {"ok": False, "action": "run_command", "result": None, "error": "command timed out"}
         out = (proc.stdout or "") + (proc.stderr or "")

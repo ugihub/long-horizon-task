@@ -1,5 +1,5 @@
 # tests/test_safe_executor.py
-import os, tempfile, shutil, unittest
+import copy, os, tempfile, shutil, unittest
 from engine.lhtm.safe_executor import SafeExecutor
 from engine.lhtm.config import DEFAULT_CONFIG
 
@@ -11,7 +11,7 @@ def approved(decision):
 class TestSafeExecutor(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()
-        self.cfg = dict(DEFAULT_CONFIG)
+        self.cfg = copy.deepcopy(DEFAULT_CONFIG)
         self.exe = SafeExecutor(self.cfg)
         self.src = os.path.join(self.tmp, "src")
         os.makedirs(self.src, exist_ok=True)
