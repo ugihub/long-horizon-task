@@ -27,7 +27,8 @@ class TestReleaseAscii(unittest.TestCase):
                 for f in files:
                     p = os.path.join(root, f)
                     try:
-                        txt = open(p, encoding="utf-8").read()
+                        with open(p, encoding="utf-8") as fh:
+                            txt = fh.read()
                     except (OSError, UnicodeDecodeError):
                         continue
                     hits = [(i + 1, ch) for i, ch in enumerate(txt) if ord(ch) > 127]
@@ -45,7 +46,8 @@ class TestReleaseAscii(unittest.TestCase):
                 if rel == "eval/report.md":
                     continue
                 try:
-                    txt = open(p, encoding="utf-8").read()
+                    with open(p, encoding="utf-8") as fh:
+                        txt = fh.read()
                 except (OSError, UnicodeDecodeError):
                     continue
                 for i, ch in enumerate(txt):
