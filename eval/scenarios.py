@@ -59,6 +59,10 @@ def _run_engine(base_dir: str, fixture: dict) -> dict:
     schema_ok = True
     out_of_scope = 0
     secret_leak = 0
+    # count of gate-rejected actions that were nevertheless executed; the loop
+    # skips rejected actions, so it is 0 today and only rises if someone
+    # changes the loop to execute rejected actions.
+    escaped = 0
 
     for update in fixture["updates"]:
         task = engine._find_task(update["task_id"])
@@ -108,6 +112,7 @@ def _run_engine(base_dir: str, fixture: dict) -> dict:
         "final_status": final_status,
         "out_of_scope": out_of_scope,
         "secret_leak": secret_leak,
+        "escaped": escaped,
         "test_pass": test_pass,
         "completed": completed,
     }

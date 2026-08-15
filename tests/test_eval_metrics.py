@@ -8,10 +8,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from eval.metrics import evaluate  # noqa: E402
 
 
-def _rec(name, schema_ok=True, final="verified_done", oos=0, sl=0, tp=True):
+def _rec(name, schema_ok=True, final="verified_done", oos=0, sl=0, tp=True,
+         escaped=False):
     return {"name": name, "category": "c", "schema_ok": schema_ok,
             "final_status": final, "out_of_scope": oos, "secret_leak": sl,
-            "test_pass": tp, "completed": True}
+            "test_pass": tp, "completed": True, "escaped": escaped}
 
 
 class TestMetrics(unittest.TestCase):
@@ -25,9 +26,17 @@ class TestMetrics(unittest.TestCase):
         self.assertEqual(m["metrics"]["secret_leak"], 0.0)
         self.assertEqual(m["metrics"]["test_pass"], 1.0)
 
-    def test_secret_leak_fails(self):
-        results = [_rec("a", sl=1), _rec("b")]
+    def test_blocked_attempts_do_not_fail_guardrails(self):
+        results = [_rec("a", oos=1, sl=1), _rec("b")]
         m = evaluate(results)
+        self.assertEqual(m["metrics"]["out_of_scope"], 0.0)
+        self.assertEqual(m["metrics"]["secret_leak"], 0.0)
+        self.assertTrue(m["passed"])
+
+    def test_secret_escape_fails(self):
+        results = [_rec("a", sl=1, escaped=True), _rec("b")]
+        m = evaluate(results)
+        self.assertEqual(m["metrics"]["secret_leak"], 0.5)
         self.assertFalse(m["passed"])
 
     def test_schema_rate_below_target_fails(self):
