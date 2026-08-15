@@ -1,0 +1,29 @@
+{
+  "name": "high_risk_needs_approval",
+  "category": "category_03_high_risk",
+  "goal": "Migrate the database",
+  "plan": {
+    "tasks": [
+      {"id": "T01", "title": "Migrate", "objective": "Run migration",
+       "status": "pending", "depends_on": [], "risk_level": "high",
+       "allowed_paths": ["src/"], "allowed_commands": ["python"],
+       "definition_of_done": ["migration ran"], "artifacts": [],
+       "evidence": [], "attempts": 0, "max_attempts": 3}
+    ]
+  },
+  "updates": [
+    {"task_id": "T01", "status": "claimed_done",
+     "evidence": [{"type": "observation", "note": "migration ran successfully"}],
+     "artifacts": [],
+     "proposed_actions": [
+       {"action": "run_command", "tool": "python", "args": ["-c", "print('migrate')"]}
+     ]}
+  ],
+  "expected": {
+    "schema_ok": true,
+    "final_status": "verified_done",
+    "out_of_scope": 0,
+    "secret_leak": 0,
+    "test_pass": true
+  }
+}

@@ -93,6 +93,9 @@ def _run_engine(base_dir: str, fixture: dict) -> dict:
         result = engine.process_update(update)
         if not result.get("accepted"):
             schema_ok = False
+        rec = update.get("recovery")
+        if rec:
+            engine.recover(update["task_id"], rec)
 
     last = fixture["plan"]["tasks"][-1]["id"]
     final_task = engine._find_task(last)

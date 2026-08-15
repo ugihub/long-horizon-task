@@ -53,5 +53,14 @@ class TestScenarios(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(workdir, "src", "cli.py")))
 
 
+    def test_recover_retry_ends_verified(self):
+        fx = _load("01_recover_retry.json", "category_05_recovery")
+        rec = scenarios.run_scenario(fx)
+        self.assertTrue(rec["schema_ok"])
+        self.assertEqual(rec["final_status"], "verified_done")
+        self.assertTrue(rec["test_pass"])
+        self.assertTrue(rec["completed"])
+
+
 if __name__ == "__main__":
     unittest.main()

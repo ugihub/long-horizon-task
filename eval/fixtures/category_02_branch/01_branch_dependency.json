@@ -1,0 +1,40 @@
+{
+  "name": "branch_dependency",
+  "category": "category_02_branch",
+  "goal": "Build a two-module library",
+  "plan": {
+    "tasks": [
+      {"id": "T01", "title": "Core", "objective": "Init core.py",
+       "status": "pending", "depends_on": [], "risk_level": "low",
+       "allowed_paths": ["src/"], "allowed_commands": [],
+       "definition_of_done": ["core.py exists"], "artifacts": [],
+       "evidence": [], "attempts": 0, "max_attempts": 3},
+      {"id": "T02", "title": "Cli", "objective": "Init cli.py",
+       "status": "pending", "depends_on": ["T01"], "risk_level": "low",
+       "allowed_paths": ["src/"], "allowed_commands": [],
+       "definition_of_done": ["cli.py exists"], "artifacts": [],
+       "evidence": [], "attempts": 0, "max_attempts": 3}
+    ]
+  },
+  "updates": [
+    {"task_id": "T01", "status": "claimed_done",
+     "evidence": [{"type": "file_created", "path": "src/core.py", "note": "core.py exists"}],
+     "artifacts": ["src/core.py"],
+     "proposed_actions": [
+       {"action": "write_file", "path": "src/core.py", "content": "CORE = 1\n"}
+     ]},
+    {"task_id": "T02", "status": "claimed_done",
+     "evidence": [{"type": "file_created", "path": "src/cli.py", "note": "cli.py exists"}],
+     "artifacts": ["src/cli.py"],
+     "proposed_actions": [
+       {"action": "write_file", "path": "src/cli.py", "content": "print('cli')\n"}
+     ]}
+  ],
+  "expected": {
+    "schema_ok": true,
+    "final_status": "verified_done",
+    "out_of_scope": 0,
+    "secret_leak": 0,
+    "test_pass": true
+  }
+}
