@@ -10,15 +10,15 @@ class TestPromptLoader(unittest.TestCase):
         self.loader = PromptLoader(repo_root=REPO_ROOT)
 
     def test_load_executor_skill(self):
-        text = self.loader.load("skills/executor.md")
+        text = self.loader.load("skills/executor/SKILL.md")
         self.assertIn("Executor Skill", text)
 
     def test_load_output_contract(self):
-        text = self.loader.load("skills/output_contract.md")
+        text = self.loader.load("skills/output-contract/SKILL.md")
         self.assertIn("lhtm-update", text)
 
     def test_load_multiple(self):
-        text = self.loader.load("skills/output_contract.md", "skills/lhtm_core.md")
+        text = self.loader.load("skills/output-contract/SKILL.md", "skills/lhtm-core/SKILL.md")
         self.assertIn("lhtm-update", text)
         self.assertIn("10 Rules", text)
 

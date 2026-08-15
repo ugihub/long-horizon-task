@@ -1,4 +1,11 @@
-# Planner Skill — LHTM Plan Generation
+---
+name: planner
+description: Generate a JSON plan (schema lhtm.plan/v1) from a goal.
+---
+
+# Planner Skill - LHTM Plan Generation
+
+Requires: `lhtm-core` (the 10 non-negotiable rules apply).
 
 Output a JSON plan conforming to schema `lhtm.plan/v1`.
 

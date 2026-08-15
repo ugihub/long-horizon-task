@@ -1,4 +1,11 @@
+---
+name: executor
+description: Per-turn execution for one active task, proposing lhtm-update blocks and evidence.
+---
+
 # Executor Skill - Per-Turn Execution
+
+Requires: `lhtm-core` (the 10 non-negotiable rules apply). Emits `output-contract` blocks.
 
 ## Input
 - Active task card (from planner)

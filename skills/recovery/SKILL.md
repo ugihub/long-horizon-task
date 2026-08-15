@@ -1,4 +1,11 @@
-# Recovery Skill — Error Recovery Actions
+---
+name: recovery
+description: Choose a recovery action when a task fails or the system enters RECOVERY phase.
+---
+
+# Recovery Skill - Error Recovery Actions
+
+Requires: `lhtm-core` (the 10 non-negotiable rules apply).
 
 When a task fails or the system enters `RECOVERY` phase, choose one:
 

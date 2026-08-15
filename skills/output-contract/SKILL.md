@@ -1,9 +1,15 @@
+---
+name: output-contract
+description: The lhtm-update fenced block format, allowed statuses, and proposed_actions schema.
+---
+
 # Output Contract - lhtm-update Block
+
+Requires: `lhtm-core` (the 10 non-negotiable rules apply).
 
 ## Format
 Every response must end with a fenced JSON block:
 
-````
 ```lhtm-update
 {
   "task_id": "T01",
@@ -13,7 +19,6 @@ Every response must end with a fenced JSON block:
   "context": {"rationale": "...", "next_step": "..."}
 }
 ```
-````
 
 ## Statuses you MAY use
 - `pending`, `ready`, `active`, `blocked`, `claimed_done`, `failed`
