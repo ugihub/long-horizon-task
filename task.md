@@ -163,12 +163,12 @@ Exit: laporan evaluasi otomatis, metrik utama terukur.
 
 Tujuan: rilis aman dengan default supervised. Sumber: Phase 10 (13), Phase 19.
 
-- [ ] Susun repositori final (`gemini-flash-lhtm/`) sesuai Phase 13.
-- [ ] `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`, `SECURITY.md`, `LIMITATIONS.md`, `EVALUATION.md`.
-- [ ] Example project + `run_supervised_demo.py`.
-- [ ] CI workflows: `test.yml`, `lint.yml`, `eval.yml`.
-- [ ] `pyproject.toml`, `LICENSE`.
-- [ ] Pastikan default mode `supervised`, secure defaults, tanpa critical security issue.
+- [x] Susun repositori final (`gemini-flash-lhtm/`) sesuai Phase 13.
+- [x] `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`, `SECURITY.md`, `LIMITATIONS.md`, `EVALUATION.md`.
+- [x] Example project + `run_supervised_demo.py`.
+- [x] CI workflows: `test.yml`, `lint.yml`, `eval.yml`.
+- [x] `pyproject.toml`, `LICENSE`.
+- [x] Pastikan default mode `supervised`, secure defaults, tanpa critical security issue.
 
 Exit: CI hijau, dokumentasi limitasi jelas, default supervised.
 
