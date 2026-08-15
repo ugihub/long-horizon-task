@@ -83,8 +83,17 @@ engine/lhtm/            Deterministic engine (stdlib + PyYAML)
   project_facts.py      Read-only repo scan -> facts + excerpts
   markdown_view.py      Renders progress tracker from state
   config.py             Policy + allowlist (PyYAML, deep merge)
-tests/                  stdlib unittest suite (218 tests)
+tests/                  stdlib unittest suite (240 tests)
 scripts/run_supervised.py  End-to-end supervised demo (no LLM API)
+example/                Standalone supervised demo (example project)
+QUICKSTART.md           Three usage paths
+ARCHITECTURE.md         Component + data-flow overview
+SECURITY.md             Security model and defaults
+LIMITATIONS.md          Honest limits of the release
+EVALUATION.md           P8 evaluation results and how to rerun
+pyproject.toml          Packaging metadata (no install needed to use)
+LICENSE                 MIT
+.github/workflows/      CI: test, lint, eval
 docs/superpowers/       Design specs + implementation plans (Tahap 1-4)
 skills/                 LHTM skill pack (planner, executor, verifier, ...)
 policies/               security, action allowlist, completion rules
@@ -112,6 +121,17 @@ Run the tests:
 ```bash
 python -m unittest discover -s tests -p "test_*.py"
 ```
+
+### Install the skills
+
+Install the six LHTM skills into any skill client (Claude Code, Antigravity,
+Codex):
+
+```bash
+npx skills add ugihub/long-horizon-task
+```
+
+The engine is local Python; see `QUICKSTART.md` for the three usage paths.
 
 ### Using the engine programmatically
 
@@ -142,10 +162,12 @@ engine.render_tracker()
 
 ### Roadmap status
 
-Tahap 1-4 implemented (sprints P0-P7):
-skill pack + output contract, stateful planning, supervised executor, evidence
-verification, safe command execution, recovery & robustness, security & context
-hardening. P8 (evaluation harness) and P9 (public release) are not yet implemented.
+All sprints P0-P9 implemented: skill pack + output contract, stateful planning,
+supervised executor, evidence verification, safe command execution, recovery &
+robustness, security & context hardening, evaluation harness (P8), and public
+release packaging (P9). Install the skill pack in Claude Code / Antigravity /
+Codex with `npx skills add ugihub/long-horizon-task` (once the repo is public).
+The repo is currently private; all release artifacts are present and verified.
 
 ---
 
@@ -225,8 +247,17 @@ engine/lhtm/            Engine deterministik (stdlib + PyYAML)
   project_facts.py      Pemindaian repo read-only -> facts + excerpts
   markdown_view.py      Merender tracker progres dari state
   config.py             Kebijakan + allowlist (PyYAML, deep merge)
-tests/                  Suite stdlib unittest (218 tes)
+tests/                  Suite stdlib unittest (240 tes)
 scripts/run_supervised.py  Demo supervised end-to-end (tanpa API LLM)
+example/                Demo supervised standalone (project contoh)
+QUICKSTART.md           Tiga jalur pemakaian
+ARCHITECTURE.md         Ringkasan komponen + data flow
+SECURITY.md             Model keamanan dan default
+LIMITATIONS.md          Batasan jujur rilis ini
+EVALUATION.md           Hasil evaluasi P8 dan cara menjalankan ulang
+pyproject.toml          Metadata packaging (tak perlu install untuk memakai)
+LICENSE                 MIT
+.github/workflows/      CI: test, lint, eval
 docs/superpowers/       Spesifikasi desain + rencana implementasi (Tahap 1-4)
 skills/                 Paket skill LHTM (planner, executor, verifier, ...)
 policies/               security, action allowlist, completion rules
@@ -254,6 +285,16 @@ Jalankan tes:
 ```bash
 python -m unittest discover -s tests -p "test_*.py"
 ```
+
+### Pasang skill
+
+Pasang enam skill LHTM ke klien skill apa pun (Claude Code, Antigravity, Codex):
+
+```bash
+npx skills add ugihub/long-horizon-task
+```
+
+Engine adalah Python lokal; lihat `QUICKSTART.md` untuk tiga jalur pemakaian.
 
 ### Memakai engine secara programatik
 
@@ -284,14 +325,15 @@ ke `FULL_AUTO`).
 
 ### Status roadmap
 
-Tahap 1-4 sudah diimplementasikan (sprint P0-P7): skill pack + kontrak output,
-planning ber-state, executor supervised, verifikasi bukti, eksekusi perintah aman,
-recovery & ketangguhan, penguatan keamanan & konteks. P8 (evaluation harness) dan P9
-(public release) belum diimplementasikan.
+Semua sprint P0-P9 sudah diimplementasikan: skill pack + kontrak output, planning
+ber-state, executor supervised, verifikasi bukti, eksekusi perintah aman, recovery
+& ketangguhan, penguatan keamanan & konteks, evaluation harness (P8), dan
+packaging rilis publik (P9). Pasang skill pack di Claude Code / Antigravity /
+Codex dengan `npx skills add ugihub/long-horizon-task` (setelah repo publik).
+Saat ini repo masih privat; semua artefak rilis sudah lengkap dan terverifikasi.
 
 ---
 
 ## License
 
-No license file yet. See `task.md` and `Implementation_plan.md` for the original
-sprint plan and design context.
+MIT. See `LICENSE`.
