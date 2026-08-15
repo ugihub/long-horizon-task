@@ -87,6 +87,20 @@ class TestRecovery(unittest.TestCase):
         # subtask depends on parent, which is NOT in the sub-task's own list
         self.assertIn("T01", state["tasks"][1]["depends_on"])
 
+    def test_decompose_dedups_parent_edge(self):
+        # a subtask that lists the parent in its own depends_on must not get a
+        # duplicated parent edge on apply (recovery.py decompose branch strips it)
+        state = make_state([make_task(status="active")])
+        t = state["tasks"][0]
+        subs = [
+            {"id": "T01-a", "title": "a", "objective": "", "status": "pending",
+             "depends_on": ["T01", "T01"], "risk_level": "low", "allowed_paths": ["src/"],
+             "allowed_commands": [], "definition_of_done": [], "artifacts": [],
+             "evidence": [], "attempts": 0, "max_attempts": 3},
+        ]
+        self.orc.apply(state, t, {"action": "decompose_task", "proposed_subtasks": subs}, {})
+        self.assertEqual(state["tasks"][1]["depends_on"], ["T01"])
+
     def test_switch_to_safe_mode_rejects_full_auto(self):
         state = make_state([make_task()])
         errs = self.orc.validate_action(state, "T01", {"action": "switch_to_safe_mode", "mode": "FULL_AUTO"}, {})

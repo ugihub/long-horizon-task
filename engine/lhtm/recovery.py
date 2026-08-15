@@ -79,9 +79,10 @@ class RecoveryOrchestrator:
                 s["status"] = "pending"
                 s.setdefault("attempts", 0)
                 s.setdefault("max_attempts", task.get("max_attempts", 3))
-                deps = list(s.get("depends_on", []))
-                if task["id"] not in deps:
-                    deps.insert(0, task["id"])
+                # strip the parent id if the caller already listed it, so the
+                # parent edge is never duplicated on apply
+                deps = [d for d in s.get("depends_on", []) if d != task["id"]]
+                deps.insert(0, task["id"])
                 s["depends_on"] = deps
             state["tasks"].extend(subs)
         elif name == "switch_to_safe_mode":
