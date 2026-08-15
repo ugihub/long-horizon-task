@@ -18,7 +18,9 @@ class TestEvalHarness(unittest.TestCase):
         self.assertIn("results", out)
         self.assertIn("metrics", out)
         self.assertIn("passed", out)
-        self.assertEqual(len(out["results"]), 2)  # two seed fixtures
+        n_fixtures = sum(1 for _, _, files in os.walk(FIXTURES)
+                         for fn in files if fn.endswith(".json"))
+        self.assertEqual(len(out["results"]), n_fixtures)
         self.assertIsInstance(out["metrics"], dict)
 
     def test_run_is_deterministic_order(self):
