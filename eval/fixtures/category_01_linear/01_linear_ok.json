@@ -1,0 +1,40 @@
+{
+  "name": "linear_ok",
+  "category": "category_01_linear",
+  "goal": "Build a CLI todo app",
+  "plan": {
+    "tasks": [
+      {"id": "T01", "title": "Scaffold", "objective": "Init cli.py",
+       "status": "pending", "depends_on": [], "risk_level": "low",
+       "allowed_paths": ["src/"], "allowed_commands": [],
+       "definition_of_done": ["cli.py exists"], "artifacts": [],
+       "evidence": [], "attempts": 0, "max_attempts": 3},
+      {"id": "T02", "title": "Parser", "objective": "Add parser.py",
+       "status": "pending", "depends_on": ["T01"], "risk_level": "low",
+       "allowed_paths": ["src/"], "allowed_commands": [],
+       "definition_of_done": ["parser.py exists"], "artifacts": [],
+       "evidence": [], "attempts": 0, "max_attempts": 3}
+    ]
+  },
+  "updates": [
+    {"task_id": "T01", "status": "claimed_done",
+     "evidence": [{"type": "file_created", "path": "src/cli.py", "note": "cli.py exists"}],
+     "artifacts": ["src/cli.py"],
+     "proposed_actions": [
+       {"action": "write_file", "path": "src/cli.py", "content": "print('todo v1')\n"}
+     ]},
+    {"task_id": "T02", "status": "claimed_done",
+     "evidence": [{"type": "file_created", "path": "src/parser.py", "note": "parser.py exists"}],
+     "artifacts": ["src/parser.py"],
+     "proposed_actions": [
+       {"action": "write_file", "path": "src/parser.py", "content": "def parse(a): return a\n"}
+     ]}
+  ],
+  "expected": {
+    "schema_ok": true,
+    "final_status": "verified_done",
+    "out_of_scope": 0,
+    "secret_leak": 0,
+    "test_pass": true
+  }
+}
