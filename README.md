@@ -8,6 +8,9 @@ tugas agen jangka panjang secara aman dan terverifikasi.
 
 > **English** | [Bahasa Indonesia](#bahasa-indonesia)
 
+**tags:** `llm-agents` `guardrails` `deterministic-engine` `task-management` `agentic-ai`
+`evidence-based` `evaluation` `claude-code` `skills-sh` `python`
+
 ---
 
 ## English
@@ -18,6 +21,10 @@ LHTM turns "ask an agent to do a big multi-step task" into a structured, auditab
 safe process. Instead of trusting the LLM to behave, LHTM splits the work between an
 **LLM that proposes** and a **deterministic engine that validates and decides**.
 
+LHTM is boring on purpose. It never takes the model's word for anything: every state
+transition, file write, and command must pass deterministic checks, and no task becomes
+`verified_done` without verifiable evidence. The cage is built in code, not in prompts.
+
 ```
 LLM proposes. Engine validates. Evidence decides.
 JSON canonical state. Markdown is only a generated view.
@@ -25,9 +32,42 @@ Execution is bound to active_task_id.
 Deterministic guardrails, not just prompts.
 ```
 
-The engine never takes the model's word for anything: every state transition, file
-write, and command must pass deterministic checks, and no task becomes `verified_done`
-without verifiable evidence.
+### The LHTM cycle
+
+This is the whole project in one diagram - the alur the engine runs every session.
+
+```
+    GOAL        you state it once; engine hashes + freezes it
+     |
+     v
+    PLAN        planner proposes JSON (schema lhtm.plan/v1); engine validates
+     |            schema, task fields, dependencies, cycle-free, goal_hash match
+     v
+    READY       approved; scheduler promotes exactly one task at a time
+     |
+     v
+    EXECUTE     one active_task_id; you emit lhtm-update blocks
+     |            action gate + safe executor run only approved actions
+     v
+    VERIFY      claimed_done -> evidence verifier (C1-C5)
+     |            pass -> verified_done   fail -> failed + feedback
+     v
+    RECOVER     retry / decompose / mark_blocked / rollback / ask user
+     |
+     v
+    DONE        all tasks terminal; redacted tracker rendered
+```
+
+Every arrow is a deterministic engine check. Nothing moves to the next stage without
+passing it.
+
+### Design philosophy
+
+- **The model proposes, never decides.** Statuses like `verified_done` are engine-owned.
+- **Evidence over claims.** A task is done only when its `definition_of_done` is proven.
+- **Safe by default.** `supervised` is the default mode - writes and commands ask approval.
+- **Auditable everything.** State, events, and redacted views are generated, never hand-edited.
+- **Boring beats clever.** Predictable, testable, CI-friendly. No magic.
 
 ### Core ideas
 
@@ -64,6 +104,8 @@ without verifiable evidence.
 - **Security & context hardening** (`P7`) - secret redaction (model-facing only),
   runbook runner (operator-authored, idempotent), budgeted context assembly,
   `project_facts` repo scan.
+- **Evaluation harness** (`P8`) - static adversarial fixtures drive the real engine;
+  5 metrics vs task.md targets, written to `eval/report.md`.
 
 ### Repository layout
 
@@ -83,7 +125,7 @@ engine/lhtm/            Deterministic engine (stdlib + PyYAML)
   project_facts.py      Read-only repo scan -> facts + excerpts
   markdown_view.py      Renders progress tracker from state
   config.py             Policy + allowlist (PyYAML, deep merge)
-tests/                  stdlib unittest suite (240 tests)
+tests/                  stdlib unittest suite (242 tests)
 scripts/run_supervised.py  End-to-end supervised demo (no LLM API)
 example/                Standalone supervised demo (example project)
 QUICKSTART.md           Three usage paths
@@ -104,49 +146,148 @@ policies/               security, action allowlist, completion rules
 - Python 3.13 (stdlib `unittest` for tests)
 - PyYAML (the only non-stdlib dependency, used by `engine/lhtm/config.py`)
 
-### Quick start
+### Detailed usage
 
-Run the end-to-end supervised demo (simulated LLM, real gate + executor + verifier):
+#### 1. Install
+
+```bash
+python -m pip install PyYAML
+```
+
+That is the entire dependency list. Everything else is the Python standard library.
+
+#### 2. Run the supervised demo
 
 ```bash
 python scripts/run_supervised.py
 ```
 
-Expected tail: T01 and T02 reach `verified_done`, T03 fails verification, then the
-demo drives T03 through recovery (`retry_with_hint` -> `mark_blocked`) and renders a
-redacted tracker.
+What you will see:
 
-Run the tests:
+1. The goal is set and hashed; the plan is approved and the phase moves to READY.
+2. T01 and T02 reach `verified_done` - the gate approves their writes, the executor
+   writes `src/cli.py` and `src/parser.py`, and the evidence verifier confirms the
+   files exist.
+3. T03 claims a file that was never created. Verification fails and the task becomes
+   `failed` with feedback.
+4. Recovery drives T03 through `retry_with_hint` then `mark_blocked`.
+5. A redacted progress tracker is rendered.
+
+The demo is non-interactive (approvals are auto-granted so it can run in CI), uses a
+simulated LLM (no API, no cost), and cleans up its temp state and `src/` when done.
+
+#### 3. Run the tests
 
 ```bash
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Install the skills
+242 tests, all stdlib `unittest`. No pytest required.
 
-Install the six LHTM skills into any skill client (Claude Code, Antigravity,
-Codex):
+#### 4. Run the evaluation harness
+
+```bash
+python -m eval
+```
+
+Runs 8 adversarial fixture scenarios against the real engine (gate + executor +
+verifier + recovery), writes `eval/report.md`, and exits 0 only if all 5 metrics
+meet the task.md targets. Use it as a regression gate: a broken guardrail flips
+`passed` to false. See `EVALUATION.md`.
+
+#### 5. Drive the engine programmatically
+
+```python
+from engine.lhtm.engine import LhtmEngine
+from engine.lhtm.config import Config
+from engine.lhtm.task_scheduler import TaskScheduler
+from engine.lhtm.action_gate import ActionGate
+from engine.lhtm.safe_executor import SafeExecutor
+import tempfile, shutil
+
+base = tempfile.mkdtemp(prefix="lhtm-")                 # engine state lives here
+engine = LhtmEngine(base)
+cfg = Config(base)                                      # loads defaults from config.yaml
+engine.set_goal("Build a CLI todo app")                 # hashed + frozen
+engine.state["mode"] = cfg.data["mode"].upper()         # 'supervised' by default
+scheduler = TaskScheduler()
+gate = ActionGate()
+executor = SafeExecutor(cfg.data)
+
+plan = {
+    "schema_version": "1.0",
+    "run_id": engine.state["run_id"],
+    "goal_hash": engine.state["goal"]["hash"],
+    "title": "Todo App",
+    "objective": "Build a CLI todo app",
+    "tasks": [{
+        "id": "T01", "title": "Scaffold", "objective": "Init cli.py",
+        "status": "pending", "depends_on": [], "risk_level": "low",
+        "allowed_paths": ["src/"], "allowed_commands": ["python"],
+        "definition_of_done": ["cli.py exists"], "artifacts": [],
+        "evidence": [], "attempts": 0, "max_attempts": 3,
+    }],
+    "open_questions": [], "metadata": {}, "approved": False,
+}
+engine.load_plan(plan)                  # validates schema, fields, goal_hash
+engine.approve_plan()                   # phase -> READY
+scheduler.promote_to_ready(engine.state, "T01")   # pending -> ready
+engine._save()
+engine.activate_task("T01")
+
+update = {
+    "task_id": "T01",
+    "status": "claimed_done",
+    "evidence": [{"type": "file_created", "path": "src/cli.py", "note": "cli.py exists"}],
+    "artifacts": ["src/cli.py"],
+    "proposed_actions": [{"action": "write_file", "path": "src/cli.py",
+                          "content": "print('todo app v1')\n"}],
+}
+
+# 1. gate + execute each proposed action (the engine validates, never the model)
+task = next(t for t in engine.state["tasks"] if t["id"] == "T01")
+for action in update["proposed_actions"]:
+    decision = gate.check(action, task, cfg.data, engine.state["mode"], task["id"])
+    if decision["allowed"]:
+        executor.execute(action, {**decision, "approval_granted": True}, task)
+
+# 2. let the engine verify the claimed_done evidence
+result = engine.process_update(update)
+print(result["verdict"])                 # 'pass' -> status becomes verified_done
+print(result["feedback"])                # verifier feedback (when fail)
+print(task["status"])                    # 'verified_done'
+
+print(engine.render_tracker())           # generated markdown view
+shutil.rmtree("src", ignore_errors=True)
+shutil.rmtree(base, ignore_errors=True)
+```
+
+#### 6. Write your own plan
+
+A plan is JSON, schema `lhtm.plan/v1`. The rules the engine enforces:
+
+- Task IDs are `T01`, `T02`, ...
+- `depends_on` must reference existing task IDs and be cycle-free.
+- All tasks start `pending`.
+- `allowed_paths` are relative paths - the gate rejects anything outside them.
+- `definition_of_done` items must be specific and verifiable ("cli.py exists", not "finish the app").
+- `risk_level`: `low` = read-only, `medium` = file edit, `high` = destructive command.
+- `goal_hash` must equal `engine.state["goal"]["hash"]` or the plan is rejected.
+
+The full shape is documented in `skills/planner/SKILL.md`.
+
+#### 7. Install the skills
+
+Install the six LHTM skills into any skill client (Claude Code, Antigravity, Codex):
 
 ```bash
 npx skills add ugihub/long-horizon-task
 ```
 
-The engine is local Python; see `QUICKSTART.md` for the three usage paths.
-
-### Using the engine programmatically
-
-```python
-from engine.lhtm.engine import LhtmEngine
-
-engine = LhtmEngine(".lhtm")
-engine.set_goal("Build a CLI todo app")
-engine.load_plan(plan_dict)      # validated, goal_hash must match
-engine.approve_plan()            # phase -> READY
-engine.activate_task("T01")
-engine.process_update(update)    # engine validates + verifies
-engine.recover("T01", {"action": "retry_with_hint", "hint": "..."})
-engine.render_tracker()
-```
+This installs `lhtm-core`, `planner`, `executor`, `verifier`, `recovery`,
+`output-contract`. The model reads the rules and drives the protocol; the engine
+(step 5) enforces it deterministically. The engine is local Python - skill clients
+cannot run it, so install the repo on the machine doing the work.
 
 ### Execution modes
 
@@ -180,6 +321,11 @@ terstruktur, teraudit, dan aman. Alih-alih mempercayai LLM, LHTM memisahkan kerj
 antara **LLM yang mengusulkan** dan **engine deterministik yang memvalidasi dan
 memutuskan**.
 
+LHTM membosankan dengan sengaja. Engine tidak pernah percaya begitu saja pada model:
+setiap transisi state, penulisan file, dan perintah harus lolos pemeriksaan
+deterministik, dan tidak ada task yang menjadi `verified_done` tanpa bukti yang
+terverifikasi. Kandang keamanannya dibangun di kode, bukan di prompt.
+
 ```
 LLM proposes. Engine validates. Evidence decides.
 JSON canonical state. Markdown hanya generated view.
@@ -187,9 +333,46 @@ Eksekusi terikat active_task_id.
 Guardrail deterministik, bukan hanya prompt.
 ```
 
-Engine tidak pernah percaya begitu saja pada model: setiap transisi state, penulisan
-file, dan perintah harus lolos pemeriksaan deterministik, dan tidak ada task yang
-menjadi `verified_done` tanpa bukti yang terverifikasi.
+### Alur proyek (LHTM cycle)
+
+Inilah seluruh proyek dalam satu diagram - alur yang dijalankan engine di setiap sesi.
+
+```
+    GOAL        goal dinyatakan sekali; engine menghash + membekukannya
+     |
+     v
+    PLAN        planner mengusulkan JSON (skema lhtm.plan/v1); engine memvalidasi
+     |            skema, field task, dependensi, bebas-siklus, kecocokan goal_hash
+     v
+    READY       disetujui; scheduler mempromosikan tepat satu task pada satu waktu
+     |
+     v
+    EXECUTE     satu active_task_id; kamu mengirim blok lhtm-update
+     |            action gate + safe executor hanya menjalankan aksi yang disetujui
+     v
+    VERIFY      claimed_done -> verifikator bukti (C1-C5)
+     |            lolos -> verified_done   gagal -> failed + feedback
+     v
+    RECOVER     retry / decompose / mark_blocked / rollback / tanya user
+     |
+     v
+    DONE        semua task terminal; tracker teredaksi dirender
+```
+
+Setiap panah adalah pemeriksaan engine yang deterministik. Tidak ada yang pindah ke
+tahap berikutnya tanpa lolos pemeriksaan itu.
+
+### Filosofi desain
+
+- **Model mengusulkan, tidak pernah memutuskan.** Status seperti `verified_done`
+  dimiliki engine.
+- **Bukti mengalahkan klaim.** Sebuah task selesai hanya jika `definition_of_done`-nya
+  terbukti.
+- **Aman secara default.** `supervised` adalah mode default - write dan perintah
+  meminta persetujuan.
+- **Semuanya dapat diaudit.** State, event, dan tampilan teredaksi di-generate,
+  tidak pernah diedit manual.
+- **Bosan mengalahkan cerdik.** Dapat diprediksi, dapat diuji, ramah CI. Tanpa sulap.
 
 ### Konsep inti
 
@@ -228,6 +411,8 @@ menjadi `verified_done` tanpa bukti yang terverifikasi.
 - **Penguatan keamanan & konteks** (`P7`) - redaksi rahasia (khusus tampilan model),
   runbook runner (ditulis operator, idempotent), perakitan konteks beranggaran,
   pemindaian repo `project_facts`.
+- **Evaluation harness** (`P8`) - fixture adversarial statis menggerakkan engine asli;
+  5 metrik terhadap target task.md, ditulis ke `eval/report.md`.
 
 ### Struktur repositori
 
@@ -247,7 +432,7 @@ engine/lhtm/            Engine deterministik (stdlib + PyYAML)
   project_facts.py      Pemindaian repo read-only -> facts + excerpts
   markdown_view.py      Merender tracker progres dari state
   config.py             Kebijakan + allowlist (PyYAML, deep merge)
-tests/                  Suite stdlib unittest (240 tes)
+tests/                  Suite stdlib unittest (242 tes)
 scripts/run_supervised.py  Demo supervised end-to-end (tanpa API LLM)
 example/                Demo supervised standalone (project contoh)
 QUICKSTART.md           Tiga jalur pemakaian
@@ -268,25 +453,138 @@ policies/               security, action allowlist, completion rules
 - Python 3.13 (stdlib `unittest` untuk tes)
 - PyYAML (satu-satunya dependensi non-stdlib, dipakai `engine/lhtm/config.py`)
 
-### Memulai cepat
+### Pemakaian detail
 
-Jalankan demo supervised end-to-end (LLM simulasi, gate + executor + verifier nyata):
+#### 1. Instalasi
+
+```bash
+python -m pip install PyYAML
+```
+
+Itu seluruh daftar dependensi. Sisanya murni pustaka standar Python.
+
+#### 2. Jalankan demo supervised
 
 ```bash
 python scripts/run_supervised.py
 ```
 
-Hasil akhir: T01 dan T02 mencapai `verified_done`, T03 gagal verifikasi, lalu demo
-mengarahkan T03 melalui recovery (`retry_with_hint` -> `mark_blocked`) dan merender
-tracker teredaksi.
+Yang akan kamu lihat:
 
-Jalankan tes:
+1. Goal ditetapkan dan di-hash; plan disetujui dan fase berpindah ke READY.
+2. T01 dan T02 mencapai `verified_done` - gate menyetujui write-nya, executor menulis
+   `src/cli.py` dan `src/parser.py`, dan verifikator bukti mengonfirmasi file ada.
+3. T03 mengklaim file yang tidak pernah dibuat. Verifikasi gagal dan task menjadi
+   `failed` dengan feedback.
+4. Recovery menggerakkan T03 melalui `retry_with_hint` lalu `mark_blocked`.
+5. Tracker progres teredaksi dirender di akhir.
+
+Demo non-interaktif (persetujuan diberikan otomatis agar bisa jalan di CI), memakai
+LLM simulasi (tanpa API, tanpa biaya), dan membersihkan state sementara serta `src/`
+setelah selesai.
+
+#### 3. Jalankan tes
 
 ```bash
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
-### Pasang skill
+242 tes, semua `unittest` stdlib. Tanpa pytest.
+
+#### 4. Jalankan evaluation harness
+
+```bash
+python -m eval
+```
+
+Menjalankan 8 skenario fixture adversarial terhadap engine asli (gate + executor +
+verifier + recovery), menulis `eval/report.md`, dan keluar dengan kode 0 hanya jika
+semua 5 metrik memenuhi target task.md. Pakai sebagai gerbang regresi: guardrail yang
+rusak akan membalik `passed` menjadi false. Lihat `EVALUATION.md`.
+
+#### 5. Menggerakkan engine secara programatik
+
+```python
+from engine.lhtm.engine import LhtmEngine
+from engine.lhtm.config import Config
+from engine.lhtm.task_scheduler import TaskScheduler
+from engine.lhtm.action_gate import ActionGate
+from engine.lhtm.safe_executor import SafeExecutor
+import tempfile, shutil
+
+base = tempfile.mkdtemp(prefix="lhtm-")                 # state engine disimpan di sini
+engine = LhtmEngine(base)
+cfg = Config(base)                                      # memuat default dari config.yaml
+engine.set_goal("Build a CLI todo app")                 # di-hash + dibekukan
+engine.state["mode"] = cfg.data["mode"].upper()         # 'supervised' secara default
+scheduler = TaskScheduler()
+gate = ActionGate()
+executor = SafeExecutor(cfg.data)
+
+plan = {
+    "schema_version": "1.0",
+    "run_id": engine.state["run_id"],
+    "goal_hash": engine.state["goal"]["hash"],
+    "title": "Todo App",
+    "objective": "Build a CLI todo app",
+    "tasks": [{
+        "id": "T01", "title": "Scaffold", "objective": "Init cli.py",
+        "status": "pending", "depends_on": [], "risk_level": "low",
+        "allowed_paths": ["src/"], "allowed_commands": ["python"],
+        "definition_of_done": ["cli.py exists"], "artifacts": [],
+        "evidence": [], "attempts": 0, "max_attempts": 3,
+    }],
+    "open_questions": [], "metadata": {}, "approved": False,
+}
+engine.load_plan(plan)                  # memvalidasi skema, field, goal_hash
+engine.approve_plan()                   # fase -> READY
+scheduler.promote_to_ready(engine.state, "T01")   # pending -> ready
+engine._save()
+engine.activate_task("T01")
+
+update = {
+    "task_id": "T01",
+    "status": "claimed_done",
+    "evidence": [{"type": "file_created", "path": "src/cli.py", "note": "cli.py exists"}],
+    "artifacts": ["src/cli.py"],
+    "proposed_actions": [{"action": "write_file", "path": "src/cli.py",
+                          "content": "print('todo app v1')\n"}],
+}
+
+# 1. gate + eksekusi setiap aksi yang diusulkan (engine yang memvalidasi, bukan model)
+task = next(t for t in engine.state["tasks"] if t["id"] == "T01")
+for action in update["proposed_actions"]:
+    decision = gate.check(action, task, cfg.data, engine.state["mode"], task["id"])
+    if decision["allowed"]:
+        executor.execute(action, {**decision, "approval_granted": True}, task)
+
+# 2. biarkan engine memverifikasi bukti claimed_done
+result = engine.process_update(update)
+print(result["verdict"])                 # 'pass' -> status menjadi verified_done
+print(result["feedback"])                # feedback verifikator (saat fail)
+print(task["status"])                    # 'verified_done'
+
+print(engine.render_tracker())           # tampilan markdown yang di-generate
+shutil.rmtree("src", ignore_errors=True)
+shutil.rmtree(base, ignore_errors=True)
+```
+
+#### 6. Menulis plan sendiri
+
+Plan adalah JSON, skema `lhtm.plan/v1`. Aturan yang ditegakkan engine:
+
+- ID task adalah `T01`, `T02`, ...
+- `depends_on` harus merujuk ID task yang ada dan bebas-siklus.
+- Semua task mulai `pending`.
+- `allowed_paths` adalah path relatif - gate menolak apa pun di luar itu.
+- Item `definition_of_done` harus spesifik dan bisa diverifikasi ("cli.py exists",
+  bukan "selesaiin aplikasinya").
+- `risk_level`: `low` = read-only, `medium` = edit file, `high` = perintah destruktif.
+- `goal_hash` harus sama dengan `engine.state["goal"]["hash"]` atau plan ditolak.
+
+Bentuk lengkap didokumentasikan di `skills/planner/SKILL.md`.
+
+#### 7. Pasang skill
 
 Pasang enam skill LHTM ke klien skill apa pun (Claude Code, Antigravity, Codex):
 
@@ -294,22 +592,10 @@ Pasang enam skill LHTM ke klien skill apa pun (Claude Code, Antigravity, Codex):
 npx skills add ugihub/long-horizon-task
 ```
 
-Engine adalah Python lokal; lihat `QUICKSTART.md` untuk tiga jalur pemakaian.
-
-### Memakai engine secara programatik
-
-```python
-from engine.lhtm.engine import LhtmEngine
-
-engine = LhtmEngine(".lhtm")
-engine.set_goal("Build a CLI todo app")
-engine.load_plan(plan_dict)      # divalidasi, goal_hash harus cocok
-engine.approve_plan()            # fase -> READY
-engine.activate_task("T01")
-engine.process_update(update)    # engine memvalidasi + memverifikasi
-engine.recover("T01", {"action": "retry_with_hint", "hint": "..."})
-engine.render_tracker()
-```
+Ini memasang `lhtm-core`, `planner`, `executor`, `verifier`, `recovery`,
+`output-contract`. Model membaca aturannya dan menjalankan protokol; engine (langkah
+5) menegakkannya secara deterministik. Engine adalah Python lokal - klien skill tidak
+bisa menjalankannya, jadi instal repo di mesin yang mengerjakan tugas.
 
 ### Mode eksekusi
 
