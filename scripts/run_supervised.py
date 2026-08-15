@@ -147,15 +147,31 @@ def main():
         if not result["accepted"]:
             break
 
+    # --- Tahap 4: recovery demo ---
+    # T03 failed verification (file never created). Drive it through recovery.
+    r = engine.recover("T03", {"action": "retry_with_hint", "hint": "create src/config.py then re-claim"})
+    print(f"[recovery] retry_with_hint T03 -> {'ok' if r['ok'] else r['error']} "
+          f"status={engine._find_task('T03')['status']}")
+    r = engine.recover("T03", {"action": "mark_blocked"})
+    print(f"[recovery] mark_blocked T03 -> {'ok' if r['ok'] else r['error']} "
+          f"status={engine._find_task('T03')['status']}")
+
+    # --- Tahap 4: facts demo ---
+    engine.refresh_facts(repo_root=".", allowed_paths=["src/"], config=cfg.data)
+    facts_path = os.path.join(base_dir, "project_facts.md")
+    print(f"[facts] generated {facts_path}")
+
     print()
     print("=" * 60)
+    from engine.lhtm.redactor import Redactor
+    engine.view.redactor = Redactor.from_config(cfg.data)
     print(engine.render_tracker())
     print("=" * 60)
     print("\nAudit events (step):")
     for e in engine.get_events():
         if e.get("event") == "step":
             print(f"  [{e['action']}] {e['result']} ({e['duration_ms']}ms)")
-    print("\nV Supervised Tahap 2+3 demo passed!")
+    print("\nV Supervised Tahap 2+3+4 demo passed!")
     shutil.rmtree(base_dir, ignore_errors=True)
     # demo writes are CWD-relative (src/cli.py etc.); clean them up
     shutil.rmtree("src", ignore_errors=True)
