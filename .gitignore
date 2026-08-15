@@ -10,6 +10,9 @@ __pycache__/
 dist/
 build/
 
+# Generated eval report
+eval/report.md
+
 # OS
 .DS_Store
 Thumbs.db
