@@ -121,7 +121,8 @@ def run_scenario(fixture: dict, workdir: str | None = None) -> dict:
     caller-provided workdir). The previous cwd is restored before returning.
     """
     prev = os.getcwd()
-    base_dir = workdir or tempfile.mkdtemp(prefix="lhtm-eval-")
+    base_dir = os.path.abspath(workdir) if workdir else tempfile.mkdtemp(prefix="lhtm-eval-")
+    os.makedirs(base_dir, exist_ok=True)
     own_dir = workdir is None
     try:
         os.chdir(base_dir)

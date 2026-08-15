@@ -17,7 +17,7 @@
      "artifacts": ["src/cli.py"],
      "proposed_actions": [
        {"action": "write_file", "path": "src/cli.py", "content": "print('ok')\n"},
-       {"action": "write_file", "path": "etc/evil.sh", "content": "rm -rf /"}
+       {"action": "write_file", "path": "etc/evil.sh", "content": "echo evil"}
      ]}
   ],
   "expected": {

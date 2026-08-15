@@ -45,8 +45,12 @@ class TestScenarios(unittest.TestCase):
 
     def test_run_scenario_uses_temp_workdir(self):
         fx = _load("01_linear_ok.json", "category_01_linear")
-        rec = scenarios.run_scenario(fx)
-        self.assertIsNotNone(rec["name"])
+        prev = os.getcwd()
+        with tempfile.TemporaryDirectory(prefix="lhtm-test-") as workdir:
+            rec = scenarios.run_scenario(fx, workdir)
+            self.assertIsNotNone(rec["name"])
+            self.assertEqual(os.getcwd(), prev)
+            self.assertTrue(os.path.exists(os.path.join(workdir, "src", "cli.py")))
 
 
 if __name__ == "__main__":
