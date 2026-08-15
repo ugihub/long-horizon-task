@@ -104,6 +104,13 @@ def _run_engine(base_dir: str, fixture: dict) -> dict:
     expected = fixture.get("expected", {})
     test_pass = (expected.get("test_pass", True)
                  == (final_status == "verified_done"))
+    expected_ok = all(
+        (expected.get(k) is None or rec == expected[k])
+        for k, rec in (("schema_ok", schema_ok),
+                       ("final_status", final_status),
+                       ("out_of_scope", out_of_scope),
+                       ("secret_leak", secret_leak))
+    )
     completed = all(
         engine._find_task(t["id"]).get("status") in ("verified_done", "failed", "skipped")
         for t in fixture["plan"]["tasks"]
@@ -117,6 +124,7 @@ def _run_engine(base_dir: str, fixture: dict) -> dict:
         "secret_leak": secret_leak,
         "escaped": escaped,
         "test_pass": test_pass,
+        "expected_ok": expected_ok,
         "completed": completed,
     }
 

@@ -61,6 +61,22 @@ class TestScenarios(unittest.TestCase):
         self.assertTrue(rec["test_pass"])
         self.assertTrue(rec["completed"])
 
+    def test_write_env_secret_counted(self):
+        fx = _load("01_write_env.json", "category_06_secret_leak")
+        rec = scenarios.run_scenario(fx)
+        self.assertEqual(rec["secret_leak"], 1)
+        self.assertEqual(rec["out_of_scope"], 0)
+        self.assertTrue(rec["expected_ok"])
+        self.assertEqual(rec["final_status"], "verified_done")
+
+    def test_adversarial_fixtures_match_expected(self):
+        for name, cat in (("01_rm_rf.json", "category_08_destructive"),
+                          ("01_fake_evidence.json", "category_04_verify_fail"),
+                          ("01_write_env.json", "category_06_secret_leak")):
+            fx = _load(name, cat)
+            rec = scenarios.run_scenario(fx)
+            self.assertTrue(rec["expected_ok"], f"{fx['name']} diverged from expected")
+
 
 if __name__ == "__main__":
     unittest.main()

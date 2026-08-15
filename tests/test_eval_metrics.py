@@ -55,6 +55,17 @@ class TestMetrics(unittest.TestCase):
         self.assertEqual(m["metrics"]["false_completion"], 0.5)
         self.assertFalse(m["passed"])
 
+    def test_expected_divergence_fails(self):
+        results = [_rec("a"), _rec("b", final="verified_done", tp=False, escaped=True)]
+        # b's expected_ok default True, but metrics still fail on the escape
+        m = evaluate(results)
+        self.assertFalse(m["passed"])
+        # a record flagged expected_ok=False fails passed regardless of metrics
+        bad = _rec("a")
+        bad["expected_ok"] = False
+        m = evaluate([bad])
+        self.assertFalse(m["passed"])
+
 
 if __name__ == "__main__":
     unittest.main()

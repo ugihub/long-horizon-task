@@ -43,5 +43,5 @@ def evaluate(results: list, targets: dict | None = None) -> dict:
     passed = all(
         (metrics[k] <= tgt[k]) if k in less_is_better else (metrics[k] >= tgt[k])
         for k in tgt
-    )
+    ) and all(r.get("expected_ok", True) for r in results)
     return {"metrics": metrics, "passed": passed}
