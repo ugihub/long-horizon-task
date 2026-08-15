@@ -78,7 +78,7 @@ emits `output-contract` blocks). Follows the same pattern plugin skills use.
 
 ### 4.2 ASCII hygiene (repo-wide)
 
-- Replace the 5 corrupted `�` (replacement char) bytes in `skills/planner.md`,
+- Replace the 5 corrupted `U+FFFD` (replacement char) bytes in `skills/planner.md`,
   `skills/recovery.md`, `skills/verifier.md` with the correct ASCII text.
 - Replace all non-ASCII glyphs (U+2192 `->`, em-dashes, smart quotes, etc.) in
   `docs/`, `skills/`, `policies/`, `examples/`, and top-level `*.md` with ASCII

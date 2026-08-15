@@ -51,12 +51,12 @@ class TestConstants(unittest.TestCase):
         self.assertTrue(c.is_legal_phase_transition("PLANNING", "ABORTED"))
 
     def test_illegal_recovery_from_recovery_sink(self):
-        # COMPLETED/ABORTED are terminals — no exit
+        # COMPLETED/ABORTED are terminals -- no exit
         self.assertFalse(c.is_legal_phase_transition("ABORTED", "READY"))
         self.assertFalse(c.is_legal_phase_transition("COMPLETED", "READY"))
 
     def test_terminal_cannot_exit_to_any_recovery_sink(self):
-        # terminals are absolute — even recovery sinks are unreachable
+        # terminals are absolute -- even recovery sinks are unreachable
         self.assertFalse(c.is_legal_phase_transition("COMPLETED", "ABORTED"))
         self.assertFalse(c.is_legal_phase_transition("COMPLETED", "BLOCKED"))
         self.assertFalse(c.is_legal_phase_transition("COMPLETED", "FAILED"))

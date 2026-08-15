@@ -82,7 +82,7 @@ middle
 
     def test_parse_error_key_does_not_shadow_user_json(self):
         # a block whose JSON legitimately contains a "parse_error" key is NOT
-        # treated as a parse failure — the sentinel distinguishes them.
+        # treated as a parse failure -- the sentinel distinguishes them.
         text = '```lhtm-update\n{"task_id": "T01", "status": "blocked", "parse_error": "x"}\n```'
         result = self.p.extract_updates(text)
         self.assertEqual(len(result), 1)

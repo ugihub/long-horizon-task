@@ -1,4 +1,4 @@
-# Completion Rules — Tahap 1
+# Completion Rules -- Tahap 1
 
 ## When a task is done
 1. All `definition_of_done` items are satisfied
@@ -13,6 +13,6 @@
 - Evidence matches definition_of_done
 
 ## Anti-patterns
-- Claiming done without evidence → rejected
-- Claiming done for a task whose `depends_on` are not `verified_done` → rejected
-- Skipping `definition_of_done` → rejected
+- Claiming done without evidence -> rejected
+- Claiming done for a task whose `depends_on` are not `verified_done` -> rejected
+- Skipping `definition_of_done` -> rejected

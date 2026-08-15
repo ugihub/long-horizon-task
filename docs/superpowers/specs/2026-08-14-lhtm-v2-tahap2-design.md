@@ -1,6 +1,6 @@
-# LHTM v2 — Tahap 2 (P3: Supervised Executor) Design
+# LHTM v2 -- Tahap 2 (P3: Supervised Executor) Design
 
-> **Agentic workers:** After approval, implementation proceeds via writing-plans → subagent-driven-development.
+> **Agentic workers:** After approval, implementation proceeds via writing-plans -> subagent-driven-development.
 
 **Date:** 2026-08-14
 **Status:** Draft for user review
@@ -36,28 +36,28 @@ Alasan defer: Tahap 2 fokus pada **guardrail deterministik** (gate + executor) y
 ```
 Engine Tahap 1 (state_store, schema_validator, parser, markdown_view, constants)
         │
-        ▼
-task_scheduler.py     — pilih task berikut (dependensi, risk, attempts, fase)
-context_builder.py    — susun prompt dari goal + task card + policy + errors
-action_gate.py        — [SEKURITI INTI] validasi setiap proposed action
-safe_executor.py      — jalankan aksi lolos gate; SUPERVISED = approval callback
-prompt_loader.py      — muat skill pack (executor.md, output_contract.md, dll) dari disk
-audit.py              — tulis event terstruktur ke .lhtm/events.jsonl
-config.py             — muat .lhtm/config.yaml → policy (PyYAML)
+        v
+task_scheduler.py     -- pilih task berikut (dependensi, risk, attempts, fase)
+context_builder.py    -- susun prompt dari goal + task card + policy + errors
+action_gate.py        -- [SEKURITI INTI] validasi setiap proposed action
+safe_executor.py      -- jalankan aksi lolos gate; SUPERVISED = approval callback
+prompt_loader.py      -- muat skill pack (executor.md, output_contract.md, dll) dari disk
+audit.py              -- tulis event terstruktur ke .lhtm/events.jsonl
+config.py             -- muat .lhtm/config.yaml -> policy (PyYAML)
 ```
 
 Alur per-turn (adaptasi Phase 8.2):
 
 ```
-1. scheduler.pick_next(state) → task atau None
+1. scheduler.pick_next(state) -> task atau None
 2. engine.activate_task(task_id)  (gate: ready, one-active, max_attempts)
 3. context = context_builder.build(state, active_task, config)
-4. [driver] kirim prompt → LLM → respon (fixture di Tahap 2)
-5. parser.extract_updates(respon) → update dict
+4. [driver] kirim prompt -> LLM -> respon (fixture di Tahap 2)
+5. parser.extract_updates(respon) -> update dict
 6. schema_validator.validate_update(update)
-7. action_gate.check(each proposed_action, task, config) → allowed/rejected
-8. safe_executor.execute(action, gate_result, config) → hasil
-9. engine.process_update(update) — simpan status/evidence/artifacts
+7. action_gate.check(each proposed_action, task, config) -> allowed/rejected
+8. safe_executor.execute(action, gate_result, config) -> hasil
+9. engine.process_update(update) -- simpan status/evidence/artifacts
 10. audit.log(step)
 11. markdown_view.render_tracker(state)
 12. loop / blocked / done
@@ -70,19 +70,19 @@ Alur per-turn (adaptasi Phase 8.2):
 ```python
 class TaskScheduler:
     def pick_next(self, state: dict) -> dict | None
-    # - hanya task status "pending" yang dipertimbangkan (promote → ready)
+    # - hanya task status "pending" yang dipertimbangkan (promote -> ready)
     # - semua depends_on harus verified_done (bukan cuma claimed_done)
-    # - risk_level tinggi + mode tidak FULL_AUTO → butuh approval (callback)
-    # - attempts >= max_attempts → lewati (hint "failed")
+    # - risk_level tinggi + mode tidak FULL_AUTO -> butuh approval (callback)
+    # - attempts >= max_attempts -> lewati (hint "failed")
     def promote_to_ready(self, state, task_id) -> dict | None
 ```
 
 Aturan:
 1. Lewati task yang `status != "pending"`.
-2. Dependensi belum `verified_done` → lewati.
-3. `risk_level == "high"` dan mode != `FULL_AUTO` → minta approval sebelum promote.
-4. `attempts >= max_attempts` → jangan promote.
-5. Promoted task: `pending → ready`.
+2. Dependensi belum `verified_done` -> lewati.
+3. `risk_level == "high"` dan mode != `FULL_AUTO` -> minta approval sebelum promote.
+4. `attempts >= max_attempts` -> jangan promote.
+5. Promoted task: `pending -> ready`.
 
 Catatan: Tahap 2 tidak punya verifier otomatis (P4). Untuk fixture, dependensi ditandai `verified_done` oleh driver; di produksi, verifier P4 yang menentukannya.
 
@@ -97,16 +97,16 @@ class ActionGate:
 Pemeriksaan (semua deterministik, urut):
 1. `active_task_id` cocok dengan task.
 2. Action type dikenal: `read_file`, `list_files`, `search_code`, `write_file`, `run_command`, `delete_file`, `ask_user`.
-3. **Path check:** path harus di dalam `allowed_paths` task. Di luar → rejected.
-4. **Sensitive blocklist:** `.env`, `*.pem`, `*.key`, `id_rsa`, `credentials.json`, `.aws/`, `.kube/`, dll (dari `policies/security.md` + config) → rejected selalu.
-5. **Command allowlist:** `run_command` hanya jika `tool` + `args` cocok allowlist config. Raw shell string → rejected.
-6. **Destructive blocklist:** `rm -rf`, `sudo`, `curl | bash`, `chmod 777`, force push, drop db, dll → rejected.
-7. **Approval tier:** `write_file`/`delete_file`/`overwrite` → `requires_approval=True` kecuali mode `FULL_AUTO`. `run_command` read-only (pytest, ruff, git status) → auto di SUPERSUPERVISED? — tidak, default `requires_approval` untuk command juga di SUPERVISED, kecuali config `allow_shell`/read-only allowlist.
-8. `write_file` ke path yang sudah ada → `requires_approval=True` (config `require_for_file_overwrite`).
+3. **Path check:** path harus di dalam `allowed_paths` task. Di luar -> rejected.
+4. **Sensitive blocklist:** `.env`, `*.pem`, `*.key`, `id_rsa`, `credentials.json`, `.aws/`, `.kube/`, dll (dari `policies/security.md` + config) -> rejected selalu.
+5. **Command allowlist:** `run_command` hanya jika `tool` + `args` cocok allowlist config. Raw shell string -> rejected.
+6. **Destructive blocklist:** `rm -rf`, `sudo`, `curl | bash`, `chmod 777`, force push, drop db, dll -> rejected.
+7. **Approval tier:** `write_file`/`delete_file`/`overwrite` -> `requires_approval=True` kecuali mode `FULL_AUTO`. `run_command` read-only (pytest, ruff, git status) -> auto di SUPERSUPERVISED? -- tidak, default `requires_approval` untuk command juga di SUPERVISED, kecuali config `allow_shell`/read-only allowlist.
+8. `write_file` ke path yang sudah ada -> `requires_approval=True` (config `require_for_file_overwrite`).
 
 Aksi yang otomatis tanpa approval (mode SUPERVISED): `read_file`, `list_files`, `search_code`.
 Aksi butuh approval: `write_file` (baru/overwrite), `delete_file`, `run_command`.
-`ask_user` → diteruskan sebagai pertanyaan ke driver.
+`ask_user` -> diteruskan sebagai pertanyaan ke driver.
 
 ### 4.3 `safe_executor.py`
 
@@ -166,7 +166,7 @@ class Config:
     def __init__(self, base_dir): self.data = self._load()  # dict
     @classmethod
     def default(cls) -> dict  # fallback jika file tak ada
-    # baca .lhtm/config.yaml; struktur per Implementation_plan.md §9.1
+    # baca .lhtm/config.yaml; struktur per Implementation_plan.md sec.9.1
 ```
 
 Struktur YAML (default):
@@ -233,8 +233,8 @@ Tambah field OPSIONAL `proposed_actions`. Status tetap: `pending/ready/blocked/c
 ```
 
 Aturan gate:
-- `proposed_actions` VALID tetapi ada yang ditolak gate → engine tidak menjalankan yang ditolak; respon berisi alasan; task tidak gagal.
-- Semua aksi `allowed` → jalankan via executor.
+- `proposed_actions` VALID tetapi ada yang ditolak gate -> engine tidak menjalankan yang ditolak; respon berisi alasan; task tidak gagal.
+- Semua aksi `allowed` -> jalankan via executor.
 - `claimed_done` tetap butuh evidence.
 
 ## 5. Security & Trust Boundary
@@ -242,40 +242,40 @@ Aturan gate:
 Trust boundary: **LLM output = untrusted.** Semua yang diklaim LLM harus melewati:
 1. Parser deterministik (Tahap 1).
 2. Validator schema (Tahap 1).
-3. ActionGate (baru) — path, allowlist, blocklist, destructive, approval.
-4. SafeExecutor — hanya jalan jika gate `allowed`.
+3. ActionGate (baru) -- path, allowlist, blocklist, destructive, approval.
+4. SafeExecutor -- hanya jalan jika gate `allowed`.
 
 Pola yang ditolak engine (bukan hanya prompt):
-- Tulis di luar `allowed_paths` → rejected.
-- Baca/tulis file sensitif → rejected.
-- Command di luar allowlist / raw shell → rejected.
-- Destructive command → rejected.
-- Status engine-owned → rejected (Tahap 1).
+- Tulis di luar `allowed_paths` -> rejected.
+- Baca/tulis file sensitif -> rejected.
+- Command di luar allowlist / raw shell -> rejected.
+- Destructive command -> rejected.
+- Status engine-owned -> rejected (Tahap 1).
 
 `config.yaml` default = supervised, semua flag keamanan `false` (tidak mengizinkan hal berisiko).
 
 ## 6. Error Handling
 
-- Gate rejected → aksi tidak dijalankan; alasan dikembalikan ke driver; tidak `failed` otomatis.
-- Command timeout → `ExecResult.error`, attempt bertambah via `process_update`.
-- File write gagal → error dikembalikan, state tidak berubah.
-- Repair loop JSON (Tahap 1) tetap: invalid → max 2 repair → `parse_error`.
+- Gate rejected -> aksi tidak dijalankan; alasan dikembalikan ke driver; tidak `failed` otomatis.
+- Command timeout -> `ExecResult.error`, attempt bertambah via `process_update`.
+- File write gagal -> error dikembalikan, state tidak berubah.
+- Repair loop JSON (Tahap 1) tetap: invalid -> max 2 repair -> `parse_error`.
 
 ## 7. Testing
 
-- `test_task_scheduler.py`: pilih task benar; skip dependensi belum verified_done; skip over-attempt; high-risk butuh approval; promote pending→ready.
+- `test_task_scheduler.py`: pilih task benar; skip dependensi belum verified_done; skip over-attempt; high-risk butuh approval; promote pending->ready.
 - `test_action_gate.py`: path di/ luar allowed_paths; sensitive blocklist; allowlist command cocok/tidak; destructive; approval tier per mode; write ke path existing.
 - `test_safe_executor.py`: read_file ok; write_file atomic + backup; delete ke trash; run_command subprocess + ringkas output + timeout; tolak aksi not-allowed.
 - `test_config.py`: load YAML; default fallback.
 - `test_context_builder.py`: injeksi goal/task card/error; wrapper untrusted ada.
 - `test_audit.py`: event ditulis format benar.
-- `scripts/run_supervised.py`: e2e fixture — goal → plan → activate → LLM-sim (fixture proposed_actions) → gate → executor → update → tracker. ASCII, no API.
+- `scripts/run_supervised.py`: e2e fixture -- goal -> plan -> activate -> LLM-sim (fixture proposed_actions) -> gate -> executor -> update -> tracker. ASCII, no API.
 
 Target: seluruh suite Tahap 1 (93) tetap hijau + test baru hijau.
 
 ## 8. Dependencies
 
-- **PyYAML** (baru, satu-satunya dep eksternal) — untuk `config.yaml`.
+- **PyYAML** (baru, satu-satunya dep eksternal) -- untuk `config.yaml`.
 - Sisanya stdlib: subprocess, pathlib, json, hashlib, datetime, tempfile, shutil, re, unittest.
 
 ## 9. Deliverables / Exit Criteria

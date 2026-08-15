@@ -1,4 +1,4 @@
-# Task Card: T02 — CLI argument parsing
+# Task Card: T02 -- CLI argument parsing
 
 **Status:** active
 **Risk:** low
@@ -16,7 +16,7 @@ Parse add/list/done commands from CLI arguments.
 - cli.py
 
 ## Allowed Commands
-- (none — read-only analysis)
+- (none -- read-only analysis)
 
 ## Evidence
 - (none yet)

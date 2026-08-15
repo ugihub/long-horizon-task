@@ -3,7 +3,7 @@
 
 SCHEMA_VERSION = "1.0"
 
-# 12 phases (ordered, per Implementation_plan.md §4.4)
+# 12 phases (ordered, per Implementation_plan.md sec.4.4)
 PHASES = [
     "DRAFT", "PLANNING", "PLAN_REVIEW", "READY",
     "EXECUTING", "VERIFYING", "BLOCKED", "WAITING_USER",
@@ -44,7 +44,7 @@ DEFAULT_POLICY = {
     "max_repair_attempts": 2,
 }
 
-# Phase transition: explicit legal edges per Implementation_plan.md §4.4.
+# Phase transition: explicit legal edges per Implementation_plan.md sec.4.4.
 # Legal source->target edges. Any source may also move to RECOVERY_* phases.
 # Phases not listed as a source default to "next phase only" (strict forward).
 PHASE_TRANSITIONS = {

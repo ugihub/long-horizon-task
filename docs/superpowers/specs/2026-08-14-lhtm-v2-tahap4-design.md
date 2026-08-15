@@ -1,6 +1,6 @@
-# LHTM v2 — Tahap 4 (P6: Recovery + P7: Security & Context Hardening) Design
+# LHTM v2 -- Tahap 4 (P6: Recovery + P7: Security & Context Hardening) Design
 
-> **Agentic workers:** After approval, implementation proceeds via writing-plans → subagent-driven-development.
+> **Agentic workers:** After approval, implementation proceeds via writing-plans -> subagent-driven-development.
 
 **Date:** 2026-08-14
 **Status:** Draft for user review
@@ -25,13 +25,13 @@ Guardrail deterministik, bukan hanya prompt.
 
 ## 2. Non-Goals (defer)
 
-- **LLM verifier second pass** (P9/P7 second pass) — verifier tetap deterministik murni (Tahap 3). Pluggable LLM binding masih YAGNI.
-- **Redaction ke state persisten** — evidence/artifacts di state tetap RAW. Redaction hanya di layer model-facing (context, executor output, markdown render). Verifier butuh path asli.
-- **Autonomous recovery module** — recovery adalah orchestrasi engine, bukan state machine otonom (keputusan user: engine-orchestrated).
-- **Entropy secret scanning** — redactor pattern-only (keputusan user). Tanpa deteksi high-entropy.
-- **Runbook + recovery integration** — runbook tidak auto-memicu phase transitions; stop-on-failure default, rollback runbook di-defer.
-- **External tokenizer** — context_budget pakai char-count, bukan token estimator (keputusan user: budget + truncation).
-- **Set_mode ke FULL_AUTO dari switch_to_safe_mode** — dilarang; safe mode hanya turun level.
+- **LLM verifier second pass** (P9/P7 second pass) -- verifier tetap deterministik murni (Tahap 3). Pluggable LLM binding masih YAGNI.
+- **Redaction ke state persisten** -- evidence/artifacts di state tetap RAW. Redaction hanya di layer model-facing (context, executor output, markdown render). Verifier butuh path asli.
+- **Autonomous recovery module** -- recovery adalah orchestrasi engine, bukan state machine otonom (keputusan user: engine-orchestrated).
+- **Entropy secret scanning** -- redactor pattern-only (keputusan user). Tanpa deteksi high-entropy.
+- **Runbook + recovery integration** -- runbook tidak auto-memicu phase transitions; stop-on-failure default, rollback runbook di-defer.
+- **External tokenizer** -- context_budget pakai char-count, bukan token estimator (keputusan user: budget + truncation).
+- **Set_mode ke FULL_AUTO dari switch_to_safe_mode** -- dilarang; safe mode hanya turun level.
 
 ## 3. Architecture
 
@@ -40,22 +40,22 @@ Engine Tahap 1-3 (state_store, schema_validator, parser, markdown_view, constant
                   task_scheduler, context_builder, action_gate, safe_executor,
                   prompt_loader, audit, config, evidence_verifier)
         │
-        ▼
-recovery.py        — [BARU] RecoveryOrchestrator: engine.recover(task_id, action)
-redactor.py        — [BARU] Redactor: redact(text) / redact_path(path) — model-facing only
-runbook.py         — [BARU] RunbookRunner: validate/execute declarative runbook (operator-authored)
-context_budget.py  — [BARU] ContextBudget: hierarchical build + per-section caps + truncation
-project_facts.py   — [BARU] ProjectFacts: scan(allowed_paths) -> facts + excerpts
-engine.py          — [HARDEN] recover(), set_mode(), decompose(), redactor hooks
-action_gate.py     — [HARDEN] AUTO_SAFE risk-tiered approval
-config.py          — [HARDEN] context_budget section + redact_patterns + facts caps
+        v
+recovery.py        -- [BARU] RecoveryOrchestrator: engine.recover(task_id, action)
+redactor.py        -- [BARU] Redactor: redact(text) / redact_path(path) -- model-facing only
+runbook.py         -- [BARU] RunbookRunner: validate/execute declarative runbook (operator-authored)
+context_budget.py  -- [BARU] ContextBudget: hierarchical build + per-section caps + truncation
+project_facts.py   -- [BARU] ProjectFacts: scan(allowed_paths) -> facts + excerpts
+engine.py          -- [HARDEN] recover(), set_mode(), decompose(), redactor hooks
+action_gate.py     -- [HARDEN] AUTO_SAFE risk-tiered approval
+config.py          -- [HARDEN] context_budget section + redact_patterns + facts caps
 ```
 
 Mode baru dipakai penuh di Tahap 4: `DRY_RUN`/`SUPERVISED`/`AUTO_SAFE`/`FULL_AUTO` (sudah ada di constants sejak P0). AUTO_SAFE = limited auto-run.
 
 ## 4. Component Contracts
 
-### 4.1 `recovery.py` — RecoveryOrchestrator
+### 4.1 `recovery.py` -- RecoveryOrchestrator
 
 ```python
 class RecoveryOrchestrator:
@@ -63,7 +63,7 @@ class RecoveryOrchestrator:
     def apply(self, state, task, action, config) -> dict                # mutates state
 ```
 
-Engine wrapper: `engine.recover(task_id, action)` → validate → apply → save → log `recovery.action`.
+Engine wrapper: `engine.recover(task_id, action)` -> validate -> apply -> save -> log `recovery.action`.
 
 Tabel aksi (setiap target adalah transisi legal yang SUDAH ada di `LEGAL_TASK_TRANSITIONS`):
 
@@ -76,15 +76,15 @@ Tabel aksi (setiap target adalah transisi legal yang SUDAH ada di `LEGAL_TASK_TR
 | `rollback_proposal` | status=ready, feedback="rolled back", evidence+artifacts cleared | active -> ready | READY |
 | `switch_to_safe_mode` | `set_mode(mode)`; valid: DRY_RUN/SUPERVISED/AUTO_SAFE (TIDAK FULL_AUTO) | (tak ubah status) | phase unchanged |
 
-`validate_action` memakai `validator.validate_transition` untuk memastikan target legal dari status task saat ini; jika ilegal → tolak dengan error transisi.
+`validate_action` memakai `validator.validate_transition` untuk memastikan target legal dari status task saat ini; jika ilegal -> tolak dengan error transisi.
 
 **decompose:** parent status -> blocked; subtasks dibuat dengan `depends_on=[parent]`, `attempts=0`, `max_attempts` inherit. Scheduler sudah handle `depends_on`. Subtask selesai -> parent promote ke ready kembali (driver). 
 
-**Command-failure / invalid-output recovery:** executor error summary sudah masuk `feedback`; parser `parse_error` sudah di-return. Driver tinggal memanggil `recover(..., "retry_with_hint")`. Tidak ada kode engine baru untuk path ini — orchestrator cukup butuh aksi legal.
+**Command-failure / invalid-output recovery:** executor error summary sudah masuk `feedback`; parser `parse_error` sudah di-return. Driver tinggal memanggil `recover(..., "retry_with_hint")`. Tidak ada kode engine baru untuk path ini -- orchestrator cukup butuh aksi legal.
 
 **Corrupt-state:** reuse `store.restore_snapshot` / `create_snapshot` (sudah ada, no new code).
 
-### 4.2 `redactor.py` — Redactor
+### 4.2 `redactor.py` -- Redactor
 
 ```python
 class Redactor:
@@ -97,13 +97,13 @@ class Redactor:
 - **Redact value, bukan key:** `password: hunter2` -> `password: [REDACTED]`. Bentuk dipertahankan agar context tetap terbaca.
 - **Inline secret:** nilai yang match pola secret panjang (mis. 40-hex, base64 run) -> placeholder. Tanpa entropy scan.
 - **Hooks (model-facing SAJA):**
-  1. `context_builder` / `context_budget` — redact assembled prompt sebelum return.
-  2. `safe_executor._run_command` — redact stdout/stderr sebelum truncation.
-  3. `markdown_view.render_tracker` — redact evidence notes / artifacts di render.
-- **State + verifier tetap RAW** (keputusan user) — verifier butuh path asli untuk `Path.exists()`.
-- **Config:** `security.redact_secrets` (sudah ada, default True) — jika False, redactor bypass. `security.redact_patterns` (custom, di-merge dgn defaults).
+  1. `context_builder` / `context_budget` -- redact assembled prompt sebelum return.
+  2. `safe_executor._run_command` -- redact stdout/stderr sebelum truncation.
+  3. `markdown_view.render_tracker` -- redact evidence notes / artifacts di render.
+- **State + verifier tetap RAW** (keputusan user) -- verifier butuh path asli untuk `Path.exists()`.
+- **Config:** `security.redact_secrets` (sudah ada, default True) -- jika False, redactor bypass. `security.redact_patterns` (custom, di-merge dgn defaults).
 
-### 4.3 `runbook.py` — RunbookRunner
+### 4.3 `runbook.py` -- RunbookRunner
 
 ```python
 class RunbookRunner:
@@ -135,7 +135,7 @@ Schema (declarative):
 - **Stop-on-failure:** default True; step gagal -> return `ok=False` + error, step berikutnya tidak dijalankan.
 - **Trust boundary:** runbook adalah **operator-authored artifact** di `.lhtm/runbooks/`. LLM TIDAK bisa menulis runbook; runbook TIDAK pernah dijalankan dari proposed_actions LLM.
 
-### 4.4 `context_budget.py` — ContextBudget
+### 4.4 `context_budget.py` -- ContextBudget
 
 ```python
 class ContextBudget:
@@ -148,7 +148,7 @@ class ContextBudget:
 - **Cascade drop:** jika assembled melebihi budget, drop excerpts -> errors -> policy sampai muat. TIDAK pernah melebihi budget.
 - **Replaces `ContextBuilder.build`:** context_builder.py jadi thin wrapper delegasi ke ContextBudget (atau isinya dipindah). Hooks redactor di sini.
 
-### 4.5 `project_facts.py` — ProjectFacts
+### 4.5 `project_facts.py` -- ProjectFacts
 
 ```python
 class ProjectFacts:
@@ -177,7 +177,7 @@ class ProjectFacts:
 ## 5. Trust Boundary
 
 Tetap: **LLM output = untrusted.** Tambahan di Tahap 4:
-- Redactor melindungi model, bukan state — verifier tetap cek realita.
+- Redactor melindungi model, bukan state -- verifier tetap cek realita.
 - Runbook operator-authored; LLM tidak bisa author runbook.
 - Recovery aksi divalidasi engine (target transisi legal), LLM tidak bisa force status ilegal via recover.
 - AUTO_SAFE masih deterministik: auto-approve hanya pada kriteria nyata (path/risk/overwrite), bukan tebakan LLM.

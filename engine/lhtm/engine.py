@@ -10,7 +10,7 @@ from .recovery import RecoveryOrchestrator
 from .project_facts import ProjectFacts
 from .constants import EXECUTION_MODES, DEFAULT_POLICY
 
-# Phase after a plan is submitted, per Implementation_plan.md §4.4 (12 phases).
+# Phase after a plan is submitted, per Implementation_plan.md sec.4.4 (12 phases).
 PHASE_AFTER_LOAD = "PLAN_REVIEW"
 
 class LhtmEngine:

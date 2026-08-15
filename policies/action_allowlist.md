@@ -1,4 +1,4 @@
-# Action Allowlist — Tahap 1
+# Action Allowlist -- Tahap 1
 
 ## Permitted (in Tahap 1, human executes)
 - READ: any file under `allowed_paths`

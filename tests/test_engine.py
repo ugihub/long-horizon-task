@@ -162,7 +162,7 @@ class TestEngine(unittest.TestCase):
         self.engine.state["tasks"][0]["status"] = "ready"
         self.engine._save()
         self.engine.activate_task("T01")
-        # LLM cannot propose 'active' — engine owns activation
+        # LLM cannot propose 'active' -- engine owns activation
         result = self.engine.process_update({"task_id": "T01", "status": "active"})
         self.assertFalse(result["accepted"])
         self.assertTrue(any("active" in e for e in result["errors"]))

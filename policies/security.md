@@ -1,8 +1,8 @@
-# Security Policy — Tahap 1
+# Security Policy -- Tahap 1
 
 ## Scope
 This policy defines the security model for LHTM. Enforcement starts at P3 (action_gate).
-Tahap 1 (P0–P2) documents the schema only.
+Tahap 1 (P0-P2) documents the schema only.
 
 ## Secret Patterns (blocked from read/write in P3+)
 - `*.pem`, `*.key`, `*.cert`
